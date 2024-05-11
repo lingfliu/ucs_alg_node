@@ -1,6 +1,5 @@
 from alg_wrapper import AlgWrapper
 from alg import Alg
-import mq
 
 import argparse
 

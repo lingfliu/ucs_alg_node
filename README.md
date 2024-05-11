@@ -1,7 +1,26 @@
 # UCS algorithm wrapper service
 
+# Requirements
+1. Python 3.8.x+
+2. Flask
+ 
+# How to use
+Please refer to [demo.py](demo.py)
+
+# Output format
+Results from alg.infer should be in following format:
+
+```json
+{
+  "tid": "task_id",
+  "sources": ["(optional) input sources"],
+  "ts": "timestamp in milliseconds",
+  "vals": ["result values container"],
+  "txts": ["result explained in text"]
+}
+```
 # License
-Copyright 2024 [East China Jiaotong University](www.ecjtu.edu.cn)
+Copyright 2024 [East China Jiaotong University](http://www.ecjtu.edu.cn)
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
