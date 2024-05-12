@@ -1,8 +1,10 @@
 class Alg:
     '''a synchronous algorithm framework'''
 
-    def __init__(self):
-        pass
+    def __init__(self, mode='stream', sources=None, model=None, submit=None):
+        self.sources = sources
+        self.model = model
+        self.submit = submit
 
     def infer_stream(self):
         '''stream infer'''
