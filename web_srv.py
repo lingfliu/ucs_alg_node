@@ -3,6 +3,8 @@ import os
 import psutil
 from alg_node import AlgNode
 
+from cli import HttpCli
+
 class WebSrv:
     def __init__(self, port=9001, alg_node=None):
         self.app = Flask(__name__)
@@ -20,6 +22,7 @@ class WebSrv:
         self.app.add_url_rule('api/op/reload', 'reload', self.reload_alg, methods=['POST']) # 重载算法
         self.app.add_url_rule('api/op/task/cleanup', 'task_cleanup', self.task_cleanup, methods=['POST']) # 清理任务
 
+        self.cli = HttpCli()
         self.app.run(host='localhost', port=port)
 
 

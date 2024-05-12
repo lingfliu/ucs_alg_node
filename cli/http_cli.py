@@ -6,6 +6,22 @@ class HttpCli:
         self.token = token
 
 
+    def get(self, url, params, headers=None):
+        if len(params) > 0:
+            url += '?'
+            first = True
+            for k, v in params.items():
+                if first:
+                    url += '%s=%s' % (k, v)
+                    first = False
+                else:
+                    url += '&%s=%s' % (k, v)
+
+        return requests.get(url, headers=headers).json()
+
+    def post(self, url, body, headers=None):
+        return requests.post(url, data=body, headers=headers).json()
+
     def _get(self, path, headers=None):
         if not self.token:
             return None
