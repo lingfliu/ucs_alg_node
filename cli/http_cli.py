@@ -1,5 +1,6 @@
 import requests
 class HttpCli:
+    """http client using post request to submit result to server"""
     def __init__(self, url):
         self.url = url
 
