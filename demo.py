@@ -1,8 +1,6 @@
 from alg_node import AlgNode
 from alg import Alg
 
-from web_srv import HttpSrv
-
 config = {
     'port_web': '9901',
     'alg_model': 'model_v1.pth',
@@ -26,8 +24,6 @@ def main():
 
     node.start_service_web()
     node.start()
-
-
 
 if __name__ == '__main__':
     main()

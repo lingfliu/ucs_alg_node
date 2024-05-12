@@ -12,6 +12,9 @@ class WebSrv:
         # 接口声明
         self.app.add_url_rule('api/stat/sysload', 'stat_sysload', self.get_stat_sysload, methods=['GET']) # 获取系统负载
         self.app.add_url_rule('api/stat/alg', 'stat_alg', self.get_stat_alg, methods=['GET']) # 获取算法状态
+        self.app.add_url_rule('api/model/upload', 'upload_model', self.upload_model, methods=['POST']) # 上传模型
+        self.app.add_url_rule('api/model/delete', 'delete_model', self.delete_model, methods=['POST']) # 删除模型
+        self.app.add_url_rule('api/model/all', 'get_model_list', self.get_model_list, methods=['GET']) # 获取模型列表
         self.app.add_url_rule('api/cfg/source', 'cfg_source', self.config_sources, methods=['POST']) # 配置数据源
         self.app.add_url_rule('api/cfg/alg', 'cfg_alg', self.config_alg, methods=['POST']) # 配置算法
         self.app.add_url_rule('api/op/reload', 'reload', self.reload_alg, methods=['POST']) # 重载算法
@@ -120,3 +123,27 @@ class WebSrv:
                 'code': 'err',
                 'msg': 'failed, code:%d' % res
             }
+
+    def upload_model(self, model_info):
+        '''upload model file'''
+        file = request.files['file']
+        model_path = os.path.join(self.alg_node.model_dir, file.filename)
+        file.save(model_path)
+
+    def delete_model(self, model_info):
+        '''upload model file'''
+        file = request.files['file']
+        model_path = os.path.join(self.alg_node.model_dir, file.filename)
+        file.save(model_path)
+
+    def get_model_list(self):
+        model_dir = self.alg_node.model_dir
+        models = []
+        for root, dirs, files in os.walk(model_dir):
+            for f in files:
+                if f.endswith('.pth'):
+                    models.append({
+                        'name': f,
+                        'path': os.path.join(root, f)
+                    })
+            return models
