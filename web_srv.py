@@ -9,12 +9,13 @@ class WebSrv:
 
         self.alg_node = alg_node
 
-        self.app.add_url_rule('api/stat/sysload', 'stat_sysload', self.get_stat_sysload, methods=['GET'])
-        self.app.add_url_rule('api/stat/alg', 'stat_alg', self.get_stat_alg, methods=['GET'])
-        self.app.add_url_rule('api/cfg/source', 'cfg_source', self.config_sources, methods=['POST'])
-        self.app.add_url_rule('api/cfg/alg', 'cfg_alg', self.config_alg, methods=['POST'])
-        self.app.add_url_rule('api/op/reload', 'reload', self.reload_alg, methods=['POST'])
-        self.app.add_url_rule('api/op/task/cleanup', 'task_cleanup', self.task_cleanup, methods=['POST'])
+        # 接口声明
+        self.app.add_url_rule('api/stat/sysload', 'stat_sysload', self.get_stat_sysload, methods=['GET']) # 获取系统负载
+        self.app.add_url_rule('api/stat/alg', 'stat_alg', self.get_stat_alg, methods=['GET']) # 获取算法状态
+        self.app.add_url_rule('api/cfg/source', 'cfg_source', self.config_sources, methods=['POST']) # 配置数据源
+        self.app.add_url_rule('api/cfg/alg', 'cfg_alg', self.config_alg, methods=['POST']) # 配置算法
+        self.app.add_url_rule('api/op/reload', 'reload', self.reload_alg, methods=['POST']) # 重载算法
+        self.app.add_url_rule('api/op/task/cleanup', 'task_cleanup', self.task_cleanup, methods=['POST']) # 清理任务
 
         self.app.run(host='localhost', port=port)
 
@@ -35,7 +36,7 @@ class WebSrv:
             'code': 'ok',
             'msg': {
                 'name': self.alg_node.name,
-                'stats': 'suspend',
+                'stats': self.alg_node.stats,
                 'model': self.alg_node.model,
             }
         }
