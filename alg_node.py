@@ -45,14 +45,14 @@ class AlgNode:
             self.alg.reload()
 
     def start(self):
-        '''only called for stream mode alg'''
+        """only called for stream mode alg"""
         if self.alg:
             if self.alg.mode == 'stream':
                 for res in self.alg.infer():
                     self.submit_result(res)
 
     def infer(self, alg_task):
-        '''synchronous infer'''
+        """synchronous infer"""
         if self.alg.mode == 'batch':
             res = self.alg.infer_batch(alg_task.input)
             # wrap result with task infos

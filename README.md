@@ -8,15 +8,16 @@
 Please refer to [demo.py](demo.py)
 
 # Output format
-Results from alg.infer should be in following format:
+Results from ```alg.infer()``` should be in following format:
 
 ```json
 {
-  "tid": "task_id",
-  "sources": ["(optional) input sources"],
-  "ts": "timestamp in milliseconds",
-  "vals": ["result values container"],
-  "txts": ["result explained in text"]
+    "tid": "task_id",
+    "sources": ["(optional) input sources"],
+    "ts_task": "timestamp in milliseconds",
+    "ts_result": "timestamp in milliseconds",
+    "vals": ["result values container"],
+    "explain": ["result explained in text"]
 }
 ```
 # License
