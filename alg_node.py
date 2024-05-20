@@ -3,6 +3,10 @@ from web_srv import WebSrv
 
 from alg import Alg
 
+ALG_STATE_IDLE = 0
+ALG_STATE_RUNNING = 1
+ALG_STATE_ERROR = 2
+
 class AlgNode:
     def __init__(self, port=9001, max_task=10, config=None):
         if config:
@@ -12,18 +16,20 @@ class AlgNode:
                 'model': config['model']
             })
 
-            result_submit_mode = config['submit'].split('://')[0]
-            #todo implement submit cli
-            if 'http' in result_submit_mode:
-                self.submit_cli = cli.MqCli(config['submit'])
-            elif 'mqtt' in result_submit_mode:
-                self.submit_cli = cli.MqttCli(config['submit'])
-            elif 'kafka' in result_submit_mode:
-                self.submit_mode = 'kafka'
-            elif 'redis' in result_submit_mode:
-                self.submit_mode = 'redis'
-            elif 'nsq' in result_submit_mode:
-                self.submit_mode = 'nsq'
+            output_cfg = config['output_cfg']
+            output_dest = output_cfg['dest']
+            output_token = output_cfg['token']
+            output_mode = output_dest.split(':')[0]
+            if 'http' in output_mode:
+                self.submit_cli = cli.HttpCli(output_dest, output_token)
+            elif 'mqtt' in output_mode:
+                self.submit_cli = cli.MqttCli(output_dest, output_token)
+            elif 'kafka' in output_mode:
+                self.submit_cli = cli.MqttCli(output_dest, output_token)
+            elif 'redis' in output_mode:
+                self.submit_cli = cli.RedisCli(output_dest, output_token)
+            elif 'nsq' in output_mode:
+                self.submit_mode = cli.MqCli(output_dest, output_token)
             else:
                 self.submit_cli = None
 

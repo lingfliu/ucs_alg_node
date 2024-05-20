@@ -1,34 +1,85 @@
-import paho.mqtt.client as mqtt
+import threading
+import time
+
+import paho.mqtt.client as mqtt_client
+import random
 
 STAT_DISCONNECTED = 'disconnected'
+STAT_CONNECTING = 'disconnected'
 STAT_CONNECTED = 'connected'
 STAT_SUBSCRIBED = 'subscribed'
 
+
 class MqttCli:
-    def __init__(self, host, port):
-        self.cli = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-        self.cli.on_connect = self.on_connect
-        self.cli.on_message = self.on_message
-        self.cli.connect(host, port, 60)
+    """N.B.: any MQ may bet lost, if the algorithm is in batch mode, should pass the result to
+    a database or a file
+    """
+    def __init__(self, host, port, username, passwd, topics, cb_on_message=None):
+        self.host = host
+        self.port = port
+        self.username = username
+        self.passwd = passwd
+        self.stat = STAT_DISCONNECTED
 
-        self.stat = 'disconnected'
+        client_id = f'ucl-alg-{random.randint(0, 100000)}'
+        self.client = mqtt_client.Client(client_id)
+        self.client.username_pw_set(self.username, self.passwd)
 
-    def on_connect(self, client, userdata, flags, rc, properties=None):
-        print("Connected with result code "+str(rc))
-        self.cli.subscribe("test")
+        self.topics = topics
 
-    def on_message(self, client, userdata, message):
-        print("message received ", str(message.payload.decode("utf-8")))
-        print("message topic=", message.topic)
-        print("message qos=", message.qos)
-        print("message retain flag=", message.retain)
+        # register callbacks
+        def on_connect(client, userdata, flags, rc):
+            if rc == 0:
+                print("Connected to MQTT Broker!")
+                self.stat = STAT_CONNECTED
+            else:
+                print("Failed to connect, return code %d\n", rc)
+                self.stat = STAT_DISCONNECTED
+            for topic in topics:
+                self.client.subscribe(topic)
+        self.client.on_connect = on_connect
 
+        def on_disconnect(client, userdata, rc):
+            print("Disconnected from MQTT Broker!")
+            self.stat = STAT_DISCONNECTED
+            time.sleep(0.01)
+            # auto-reconnect
+            self.connect()
+
+        self.client.on_disconnect = on_disconnect
+
+        def on_publish():
+            pass
+        self.client.on_publish = on_publish
+
+        self.cb_on_message = cb_on_message
+
+        def on_message(client, userdata, message):
+            # print(f"Received `{message.payload.decode()}` from `{message.topic}` topic")
+            if self.cb_on_message:
+                self.cb_on_message(message.topic, message.payload.decode())
+
+        self.client.on_message = on_message
+
+    def connect(self):
+        self.stat = STAT_CONNECTING
+        # set the client to be alive indefinitely
+        self.client.connect(host=self.host, port=self.port, keepalive=0)
+        self.client.loop_start()
+        return 0
+
+    def disconnect(self):
+        self.stat = STAT_DISCONNECTED
+        self.client.disconnect()
+        self.client.loop_stop(force=True)
 
     def subscribe(self, topic):
-        self.cli.subscribe(topic)
+        self.client.subscribe(topic)
 
-    def publish(self, topic, message):
-        self.cli.publish(topic, message)
+    def publish(self, message):
+        """publish to default topics[0]"""
+        self.client.publish(self.topics[0], message)
 
-    def loop(self):
-        self.cli.loop(timeout=1.0)
+    def publish_to(self, topic, message):
+        """specify topic to publish"""
+        self.client.publish(topic, message)
