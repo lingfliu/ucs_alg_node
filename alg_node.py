@@ -1,11 +1,16 @@
 import cli
+import utils
 from web_srv import WebSrv
 
 from alg import Alg
+from alg_submitter import AlgSubmitter
+
+import threading
 
 ALG_STATE_IDLE = 0
 ALG_STATE_RUNNING = 1
 ALG_STATE_ERROR = 2
+
 
 class AlgNode:
     def __init__(self, port=9001, max_task=10, config=None):
@@ -16,26 +21,18 @@ class AlgNode:
                 'model': config['model']
             })
 
-            output_cfg = config['output_cfg']
-            output_dest = output_cfg['dest']
-            output_token = output_cfg['token']
-            output_mode = output_dest.split(':')[0]
-            if 'http' in output_mode:
-                self.submit_cli = cli.HttpCli(output_dest, output_token)
-            elif 'mqtt' in output_mode:
-                self.submit_cli = cli.MqttCli(output_dest, output_token)
-            elif 'kafka' in output_mode:
-                self.submit_cli = cli.MqttCli(output_dest, output_token)
-            elif 'redis' in output_mode:
-                self.submit_cli = cli.RedisCli(output_dest, output_token)
-            elif 'nsq' in output_mode:
-                self.submit_mode = cli.MqCli(output_dest, output_token)
-            else:
-                self.submit_cli = None
+            out_cfg = config['output_cfg']
+            self.alg_submitter = AlgSubmitter(dest=out_cfg['dest'],
+                                              mode= out_cfg['moode'],
+                                                username=out_cfg['username'],
+                                                passwd=out_cfg['passwd'],
+                                                topic=out_cfg['topic'])
+
+            self.alg.load_model()
 
         else:
             self.alg = None
-            self.submit_cli = None
+            self.alg_submitter = None
 
         self.res_buff = []
         self.task_queue = []
@@ -43,21 +40,25 @@ class AlgNode:
 
         self.web_service = WebSrv(port, alg_node=self)
 
-    def set_alg(self, alg):
-        self.alg = alg
-
     def reload(self):
         if self.alg:
             self.alg.reload()
 
-    def start(self):
+    def run(self):
         """only called for stream mode alg"""
         if self.alg:
-            if self.alg.mode == 'stream':
-                for res in self.alg.infer():
-                    self.submit_result(res)
+            threading.Thread(target=self._run).start()
+            return 0
+        else:
+            return -1
 
-    def infer(self, alg_task):
+    def _run(self):
+        """task loop for stream mode alg"""
+        if self.alg.mode == 'stream':
+            for res in self.alg.infer():
+                self.submit_result(res)
+
+    def infer_batch(self, alg_task):
         """synchronous infer"""
         if self.alg.mode == 'batch':
             res = self.alg.infer_batch(alg_task.input)
@@ -65,14 +66,14 @@ class AlgNode:
             if res:
                 self.submit_result({
                     'tid': alg_task.tid,
-                    'ts': alg_task.ts,
+                    'task_ts': alg_task.ts,
+                    'result_ts': utils.current_time_milli(),
                     'res': res,
                 })
                 return 0
             else:
                 return self.submit_result({
                     'tid': alg_task.tid,
-                    'ts': alg_task.ts,
                     'res': 'failed',
                 })
         else:

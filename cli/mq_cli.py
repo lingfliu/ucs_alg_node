@@ -4,14 +4,15 @@ class MqCli:
     """MQ cli, by default, using NSQ
     """
 
-    def __init__(self):
-        self.rx = None
-
-    def __int__(self, host, port, topic, channel):
+    def __init__(self, host, port, topic, channel, username, passwd, on_message=None):
         self.topic = topic
         self.host = host
         self.port = port
         self.channel = channel
+        self.username = username
+        self.passwd = passwd
+        self.on_message = on_message
+
         self.nsq = nsq
         self.rx = None
         self.tx = nsq.Writer(nsqd_tcp_addresses=[self.host + ':' + self.port])

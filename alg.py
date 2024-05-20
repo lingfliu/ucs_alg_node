@@ -1,3 +1,9 @@
+STAT_INIT = 'init' # alg is initiating (model loading, etc.)
+STAT_IDLE = 'idle' # alg is idle
+STAT_RUNNING = 'running' # alg is running
+STAT_ERR = 'error' # alg is in error state
+
+
 class Alg:
     """a synchronous algorithm wrapper
     :param mode: str, 'stream' or 'batch'
@@ -26,5 +32,12 @@ class Alg:
     def reload(self):
         """reload algorithm by cleaning the caches"""
         # 1. clean the caches
+        pass
+
+    def load_model(self):
+        """
+        load model locally or remotely
+        preferably, load model in async mode
+        """
         pass
 

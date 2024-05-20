@@ -5,6 +5,7 @@ from alg_node import AlgNode
 
 from cli import HttpCli
 
+
 class WebSrv:
     def __init__(self, port=9001, alg_node=None):
         self.app = Flask(__name__)
@@ -27,7 +28,7 @@ class WebSrv:
 
 
     def get_stat_sysload(self):
-        '''get system load, cpu, gpu, memeory occupancy'''
+        """get system load, cpu, gpu, memeory occupancy"""
         mem_usage = psutil.virtual_memory()
         return {
             'sysload': os.getloadavg(),
@@ -37,7 +38,7 @@ class WebSrv:
         }
 
     def get_stat_alg(self):
-        '''get algorithm status'''
+        """get algorithm status"""
         return {
             'code': 'ok',
             'msg': {
@@ -48,7 +49,7 @@ class WebSrv:
         }
 
     def config_sources(self, sources):
-        '''update sources for inference'''
+        """update sources for inference"""
         res = self.alg_node.reg_sources(sources)
         if res >= 0:
             return {
@@ -63,14 +64,14 @@ class WebSrv:
 
 
     def config_alg(self, config):
-        '''config algorithm
+        """config algorithm
         :param config: dict
         {
             'name': 'alg_name',
             'model': 'model_v1.pth',
             'mode': 'stream',
         }
-        '''
+        """
         if self.alg_node:
             self.alg_node.reload(config)
         else:
@@ -82,9 +83,9 @@ class WebSrv:
         })
 
     def config_submit(self, submit):
-        '''config submit address
+        """config submit address
         :param submit: str
-        '''
+        """
         self.alg_node.reg_submit(submit)
         return {
             'code': 'ok',
@@ -92,14 +93,14 @@ class WebSrv:
         }
 
     def reload_alg(self):
-        '''reload algorithm'''
+        """reload algorithm"""
         if self.alg_node:
             self.alg_node.reset()
         else:
             pass
 
     def cleanup_task(self):
-        '''cleanup task'''
+        """cleanup task"""
         self.alg_node.cleanup()
         return {
             'code': 'ok',
@@ -107,14 +108,14 @@ class WebSrv:
         }
 
     def submit_task(self, task):
-        '''submit task to server
+        """submit task to server
         :param task: dict
         {
             'task_id': '123',
             'ts': '10229192',
             'data': 'data',
         }
-        '''
+        """
         res = self.alg_node.submit(task)
         if res >= 0:
             return {
@@ -128,13 +129,13 @@ class WebSrv:
             }
 
     def upload_model(self, model_info):
-        '''upload model file'''
+        """upload model file"""
         file = request.files['file']
         model_path = os.path.join(self.alg_node.model_dir, file.filename)
         file.save(model_path)
 
     def delete_model(self, model_info):
-        '''upload model file'''
+        """upload model file"""
         file = request.files['file']
         model_path = os.path.join(self.alg_node.model_dir, file.filename)
         file.save(model_path)

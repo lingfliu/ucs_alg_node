@@ -13,17 +13,24 @@ config = {
 }
 
 def main():
-    node = AlgNode()
+    config = {
+        'name':'alg_name',
+        'sources': ['rtsp://localhost:9111/123',
+                    'mqx://localhost:8011//1123'],
+        'model': 'model_v1.pth',
+        'port':10799,
+        'max_task': 10,
+        'output_cfg': {
+            'dest': 'mqtt://localhost:2799',
+            'mode': 'mq',
+            'username': 'ucs-dev',
+            'passwd': 'M*12@va33',
+            'topic': 'alg'
+        }
+    }
+    node = AlgNode(port=9901, max_task=10, config=config)
 
-    alg = Alg(mode='stream', sources=['rtsp://localhost:9111/123', 'mqx://localhost:8011//1123'])
-    alg.load_model()
-    node.set_alg(alg)
-
-    node.reg_subscribe(config['subscribe'])
-    node.reg_submit(config['submit'])
-
-    node.start_service_web()
-    node.start()
+    node.run()
 
 if __name__ == '__main__':
     main()
