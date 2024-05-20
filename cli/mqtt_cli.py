@@ -65,7 +65,9 @@ class MqttCli:
         self.stat = STAT_CONNECTING
         # set the client to be alive indefinitely
         self.client.connect(host=self.host, port=self.port, keepalive=0)
+        # todo: check the loop function to see if it is blocking
         self.client.loop_start()
+        self.client.loop()
         return 0
 
     def disconnect(self):

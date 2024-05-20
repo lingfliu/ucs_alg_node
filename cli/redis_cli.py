@@ -1,24 +1,62 @@
+import time
 import redis
+from threading import Thread
+
+
+STAT_DISCONNECTED = 'disconnected'
+STAT_CONNECTED = 'connected'
+STAT_CONNECTING = 'connecting'
+
 
 class RedisCli:
     """redis client for result submission"""
-    def __init__(self, host, port):
+    def __init__(self, host, port, db, username, passwd):
         self.host = host
         self.port = port
+        self.db = db
+        self.username = username
+        self.passwd = passwd
+
+        self.r = None
+
+        self.stat = STAT_DISCONNECTED
 
     def connect(self):
-        """todo db configuration"""
-        return redis.StrictRedis(host=self.host, port=self.port, db=0)
+        Thread(target=self._connect).start()
+
+    def _connect(self):
+        self.stat = STAT_CONNECTING
+        r = redis.Redis(host=self.host, port=self.port, db=self.db, password=self.passwd, username=self.username, socket_keepalive=True)
+        if r.ping():
+            self.stat = STAT_CONNECTED
+            self.r = r
+        else:
+            self.stat = STAT_DISCONNECTED
 
     def get(self, key):
-        return self.connect().get(key)
+        if self.stat == STAT_CONNECTED:
+            res = self.r.get(key)
+            if res:
+                return res
+            else:
+                self.on_failed()
+                return None
+        else:
+            return None
 
     def set(self, key, value):
-        return self.connect().set(key, value)
+        if self.stat == STAT_CONNECTED:
+            return self.r.set(key, value)
+        else:
+            return -1
 
     def delete(self, key):
-        return self.connect().delete(key)
+        if self.stat == STAT_CONNECTED:
+            return self.r.delete(key)
+        else:
+            return -1
 
-    def submit(self, tid, result):
-        """ result submission"""
-        return self.connect().set(tid, result)
+    def on_failed(self):
+        self.stat = STAT_DISCONNECTED
+        time.sleep(0.01)
+        self.connect()
