@@ -23,7 +23,8 @@ class MqCli:
         self.nsq.pub(self.topic, msg)
 
     def message_handle(self, msg):
-        print(msg.body)
+        if self.on_message:
+            self.on_message(msg)
 
     def subscribe(self, topic):
         self.rx = nsq.Reader(message_handler=self.message_handle,
