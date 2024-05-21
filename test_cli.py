@@ -1,17 +1,14 @@
 from cli import *
 
-# mqtt_cli test
 
 def test_mqtt_cli():
     mqtt_cli = MqttCli({
-
     })
 
     def on_connect():
         print('connected to EMQX')
     mqtt_cli.on_connect = on_connect
 
-    mqtt_cli.loop()
 
     mqtt_cli.subscribe('ucs/alg/res')
     mqtt_cli.publish('ucs/alg/res', {
@@ -34,3 +31,19 @@ def test_mq_cli():
         'topic': 'test',
         'channel': 'test'
         })
+
+
+def test_minio_cli():
+    minio_cli = MinioCli({
+        'host': 'localhost:9000',
+        'bucket':'ucs/alg/res',
+        'username': 'admin',
+        'passwd': 'admin123'
+    })
+
+    minio_cli.query()
+
+if __name__ == '__main__':
+    test_mqtt_cli()
+    test_redis_cli()
+    test_mqtt_cli()
