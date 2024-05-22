@@ -17,10 +17,10 @@ def main():
             'topic': 'alg'
         }
     }
-    node = AlgNode(max_task=10, config=config)
-    node_web_api = AlgNodeWeb(config['port'], node)
+    node = AlgNode(max_task=10, cfg=config)
+    # node_web_api = AlgNodeWeb(config['port'], node)
 
-    node_web_api.run()
+    # node_web_api.run()
     node.run()
 
 if __name__ == '__main__':

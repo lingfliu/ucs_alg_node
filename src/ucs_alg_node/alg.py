@@ -15,24 +15,30 @@ class Alg:
         self.sources = sources
         self.model = model
 
+    def prepare(self):
+        """TODO: optimizet the prepare"""
+        pass
+
     def infer_stream(self):
         """stream infer
         1. iteratively read data from the sources
         2. put into the inferencer
         3. return the results
         """
-        return None
+        yield 0
 
     def infer_batch(self, data=None):
         """batch infer, must input data"""
         if not data:
-            return -1
+            return None
 
         return None
 
     def reload(self):
         """reload algorithm by cleaning the caches"""
         # 1. clean the caches
+        # 2. reconfig the algorithm
+        # 3. reset algorithm
         pass
 
     def load_model(self):

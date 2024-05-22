@@ -1,9 +1,10 @@
 import time
 
-import utils
+import src.ucs_alg_node.utils as utils
 
-from alg import Alg
-from alg_submitter import AlgSubmitter
+
+from .alg import Alg
+from .alg_submitter import AlgSubmitter
 
 import threading
 from queue import Queue
@@ -25,6 +26,7 @@ class AlgNode:
                 alg_cfg = cfg['alg']
                 # provide model's url if the model has to be specified or downloaded
                 self.alg = Alg(self.mode, alg_cfg['sources'], alg_cfg['model'])
+                self.alg.load_model()
             else:
                 self.alg = None
 
@@ -40,7 +42,6 @@ class AlgNode:
             else:
                 self.submitter = None
 
-            self.alg.load_model()
 
         else:
             self.alg = None
@@ -59,7 +60,7 @@ class AlgNode:
 
     def _task_stream(self):
         """task loop only for stream mode"""
-        for res in self.alg.infer():
+        for res in self.alg.infer_stream():
             self.publish_result(res)
             if not self.is_running: # loop control
                 break
@@ -96,6 +97,7 @@ class AlgNode:
                 break
 
     def reload(self):
+        """TODO reload algorithm by create new algorithm"""
         if self.alg:
             self.alg.reload()
 
