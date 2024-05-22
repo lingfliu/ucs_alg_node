@@ -11,6 +11,7 @@ class Alg:
     """
 
     def __init__(self, mode='stream', sources=None, model=None):
+        self.mode = mode
         self.sources = sources
         self.model = model
 
