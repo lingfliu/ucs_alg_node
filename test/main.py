@@ -1,5 +1,5 @@
 from alg_wrapper import AlgWrapper
-from alg import Alg
+from src.ucs_alg_node.alg import Alg
 
 import argparse
 

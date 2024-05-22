@@ -1,0 +1,27 @@
+from setuptools import setup, find_packages
+from os import path
+here = path.abspath(path.dirname(__file__))
+with open(path.join(here, 'README.md'), encoding='utf-8') as f:
+    long_description = f.read()
+with open(path.join(here, 'requirements.txt'), encoding='utf-8') as f:
+    requirements = f.read().splitlines()
+
+install_requires = [r.strip() for r in requirements]
+
+setup(
+    name='ucs_alg_node',
+    version='0.1.0',
+    description='UCS algorithm wrapper service',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
+    url='https://lingfliu.github.com/ucs_alg_node',
+    package_data={'src': ['./']},
+    packages=find_packages(),
+    install_requires=install_requires,
+    classifiers=[
+        'Development Status :: 3 - Alpha',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: Apache Software License',
+    ],
+    python_requires='>=3.8',
+)

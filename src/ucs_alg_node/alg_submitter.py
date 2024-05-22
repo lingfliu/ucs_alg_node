@@ -1,4 +1,4 @@
-import cli
+from src.ucs_alg_node import cli
 
 MODE_MQ = 'mq'
 MODE_DB = 'db'

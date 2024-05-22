@@ -36,12 +36,23 @@ def http_get_file(url, params, headers=None, output_path=None):
 
 
 class HttpCli:
-    """http client using post request to submit result to server"""
-    def __init__(self, url, path=None, token=None):
+    """a http client with default urls to fetch and submit alg results"""
+    def __init__(self, host, path=None, token=None):
         if not path:
+            # default alg api root
             path = "/api/alg"
-        self.url = url + path
+        self.url = host + path
         self.token = token
+
+    def fetch_token(self, username, passwd):
+        """fetch token from server"""
+        res = http_post(self.url + '/auth', {'username': username, 'password': passwd})
+        if res['status'] == 'ok':
+            self.token = res['msg']['token']
+            return 0
+        else:
+            self.token = None
+            return -1
 
     def submit(self, tid, result):
         """alg result submission"""
@@ -50,10 +61,16 @@ class HttpCli:
 
         return http_post(self.url + '/result/submit', {'tid': tid, 'result': result}, headers={'Authorization': self.token})
 
-    def fetch(self):
-        """ fetch result by tid"""
+    def fetch_next_task(self, alg_id):
+        """fetch next task"""
+        return http_get(self.url + '/task/next', {'alg_id':alg_id}, headers={'Authorization': self.token})
+
+    def fetch_task(self, task_id):
+        """ fetch task by task_id
+        a task can be either pending or with result
+        """
         if not self.token:
             return None
 
         # put token in header
-        return http_get(self.url + '/result/fetch/', headers={'Authorization': self.token})
+        return http_get(self.url + '/task', params={'task_id':task_id}, headers={'Authorization': self.token})

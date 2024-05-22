@@ -1,4 +1,3 @@
-import cli
 import utils
 from web_srv import WebSrv
 
