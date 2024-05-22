@@ -6,7 +6,7 @@ class AlgResult:
     :param meta: dict, meta info for
     """
     def __init__(self, task_id, ts, vals=None, explain=""):
-        self.task_id = id
+        self.task_id = task_id
         self.ts = ts
         self.vals = vals
         self.explain = explain

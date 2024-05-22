@@ -1,4 +1,4 @@
-from src.ucs_alg_node import cli
+from . import cli
 
 MODE_MQ = 'mq'
 MODE_DB = 'db'
@@ -42,7 +42,7 @@ class AlgSubmitter:
 
         self.cli = None
 
-    def submit(self, tid, result):
+    def submit(self, result):
         """
         submit result to server
         :return 0 if success, -1 if failed
@@ -51,17 +51,17 @@ class AlgSubmitter:
             return -1
         else:
             if self.output_type == 'http':
-                return self.cli.submit(tid, result)
+                return self.cli.submit(result.task_id, result)
             elif self.output_type == 'mqtt':
                 return self.cli.publish(self.topic, {
-                    'tid': tid,
+                    'task_id': result.task_id,
                     'res': result
                 })
             elif self.output_type == 'redis':
-                return self.cli.set(tid, result)
+                return self.cli.set(result.task_id, result)
             elif self.output_type == 'nsq':
                 return self.cli.publish({
-                    'tid': tid,
+                    'task_id': result.task_id,
                     'res': result
                 })
             else:

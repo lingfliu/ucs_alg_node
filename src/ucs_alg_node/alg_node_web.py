@@ -1,9 +1,9 @@
 from flask import Flask, request, jsonify
 import os
 import psutil
-from src.ucs_alg_node.alg_node import AlgNode
+from .alg_node import AlgNode
 
-from src.ucs_alg_node.cli import HttpCli
+from .cli import HttpCli
 
 
 class AlgNodeWeb:

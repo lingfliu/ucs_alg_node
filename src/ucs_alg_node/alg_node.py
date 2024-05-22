@@ -1,7 +1,6 @@
 import time
 
-import src.ucs_alg_node.utils as utils
-
+from .utils import current_time_milli
 
 from .alg import Alg
 from .alg_submitter import AlgSubmitter
@@ -85,7 +84,7 @@ class AlgNode:
                     self.publish_result({
                         'tid': alg_task.tid,
                         'task_ts': alg_task.ts,
-                        'result_ts': utils.current_time_milli(),
+                        'result_ts': current_time_milli(),
                         'res': res,
                     })
                 else:
@@ -102,7 +101,11 @@ class AlgNode:
             self.alg.reload()
 
     def publish_result(self, res):
-        self.submitter.submit(res)
+        if self.submitter:
+            self.submitter.submit(res)
+            return 0
+        else:
+            return -1
 
 
 

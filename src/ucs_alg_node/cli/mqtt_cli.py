@@ -2,6 +2,7 @@ import threading
 import time
 
 import paho.mqtt.client as mqtt_client
+
 import random
 
 STAT_DISCONNECTED = 'disconnected'
@@ -22,7 +23,7 @@ class MqttCli:
         self.stat = STAT_DISCONNECTED
 
         client_id = f'ucl-alg-{random.randint(0, 100000)}'
-        self.client = mqtt_client.Client(client_id)
+        self.client = mqtt_client.Client(mqtt_client.CallbackAPIVersion.VERSION1, client_id)
         self.client.username_pw_set(self.username, self.passwd)
 
         self.topics = topics
