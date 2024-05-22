@@ -1,5 +1,4 @@
 import utils
-from web_srv import WebSrv
 
 from alg import Alg
 from alg_submitter import AlgSubmitter
@@ -37,7 +36,6 @@ class AlgNode:
         self.task_queue = []
         self.task_queue_max = max_task
 
-        self.web_service = WebSrv(port, alg_node=self)
 
     def reload(self):
         if self.alg:

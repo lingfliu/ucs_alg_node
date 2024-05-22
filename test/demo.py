@@ -1,15 +1,5 @@
-from src.ucs_alg_node.alg_node import AlgNode
+from src.ucs_alg_node import *
 
-config = {
-    'port_web': '9901',
-    'alg_model': 'model_v1.pth',
-    'subscribe': 'mqtt://11,11,11',
-    'submit': 'https://local',
-
-    # auth for subscription & output
-    'token_subscribe': '',
-    'token_submit': '',
-}
 
 def main():
     config = {
@@ -27,8 +17,10 @@ def main():
             'topic': 'alg'
         }
     }
-    node = AlgNode(port=9901, max_task=10, config=config)
+    node = AlgNode(max_task=10, config=config)
+    node_web_api = AlgNodeWeb(config['port'], node)
 
+    node_web_api.run()
     node.run()
 
 if __name__ == '__main__':
