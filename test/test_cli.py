@@ -1,14 +1,17 @@
 from src.ucs_alg_node.cli import *
 
 def test_mqtt_cli():
-    mqtt_cli = MqttCli({
-
-    })
+    mqtt_cli = MqttCli(
+        host = 'localhost',
+        port = '18083',
+        username = 'admin',#默认账号
+        passwd = 'public',#默认密码
+        topics = None
+    )
 
     def on_connect():
         print('connected to EMQX')
-    mqtt_cli.on_connect = on_connect
-
+    mqtt_cli.on_connect = on_connect()
 
     mqtt_cli.subscribe('ucs/alg/res')
     mqtt_cli.publish('ucs/alg/res', {
@@ -17,11 +20,13 @@ def test_mqtt_cli():
     })
 
 def test_redis_cli():
-    redis_cli = RedisCli({
-        'host':'localhost',
-        'port':6379,
-        'password':'123456'
-    })
+    redis_cli = RedisCli(
+        host='localhost',
+        port=6379,
+        db=0,  # 默认数据库索引
+        username=None,  # 如果没有用户名认证，则留空
+        passwd='123456'
+                         )
     redis_cli.connect()
 
     redis_cli.set('test', 'test')
@@ -49,11 +54,11 @@ def test_mq_cli():
 def test_minio_cli():
     """test for minio upload, download, query, count"""
     minio_cli = MinioCli(
-        'localhost',
-         '9090',
-        'pubilc',#这里好像只能起bucket名字，不能用文件夹
-         'admin',
-        'admin1234'
+        host='localhost',
+        port='9090',
+        bucket='pubilc',#这里好像只能起bucket名字，不能用文件夹
+        username='admin',
+        passwd='admin1234'
     )
 
     fobj_list = minio_cli.query_all()
@@ -78,6 +83,6 @@ def test_minio_cli():
 if __name__ == '__main__':
     # test_mqtt_cli()
     # test_redis_cli()
-    # test_mqtt_cli()
+    test_mqtt_cli()
 
-    test_minio_cli()
+    # test_minio_cli()
