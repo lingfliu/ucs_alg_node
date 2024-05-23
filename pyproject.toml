@@ -1,0 +1,9 @@
+[project]
+name = "ucs_alg_node"
+authors = [{name="Lingfeng LIU",email="lingf.liu@gmail.com"}]
+version = "0.1.0"
+description = "ucs algorithm wrapper service"
+readme = "README.md"
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"

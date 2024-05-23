@@ -1,5 +1,4 @@
-from alg_node import AlgNode
-from alg import Alg
+from src.ucs_alg_node.alg_node import AlgNode
 
 config = {
     'port_web': '9901',

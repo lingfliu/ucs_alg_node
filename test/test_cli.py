@@ -69,8 +69,8 @@ def test_minio_cli():
     # destination_file = "requirements05.txt"
     # minio_cli.upload(destination_file, source_file)
     # The file to download, change this path if needed 文件下载
-    source_file = r"D:\py program\ucs_alg_node\requirements01.txt"
-    destination_file = "requirements05.txt"
+    source_file = r"D:\py program\ucs_alg_node\requirements05.txt"
+    destination_file = "requirements01.txt"
     minio_cli.download(destination_file,source_file)
 
 

@@ -1,9 +1,9 @@
 from flask import Flask, request, jsonify
 import os
 import psutil
-from alg_node import AlgNode
+from src.ucs_alg_node.alg_node import AlgNode
 
-from cli import HttpCli
+from src.ucs_alg_node.cli import HttpCli
 
 
 class WebSrv:
