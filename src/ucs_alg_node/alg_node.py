@@ -107,5 +107,12 @@ class AlgNode:
         else:
             return -1
 
+    def check_task(self, task_id):
+        """check task status"""
+        for idx, task in enumerate(self.task_queue.queue):
+            if task.id == task_id:
+                return idx
+
+        return -1
 
 

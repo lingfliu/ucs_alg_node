@@ -70,13 +70,18 @@ class AlgNodeWeb:
         self.node.alg.stop()
 
     def config_node(self, cfg):
+        """preferably not to called"""
         if 'name' in cfg:
             self.node.name = cfg['name']
         if 'sources' in cfg:
             self.node.sources = cfg['sources']
         if 'dest' in cfg:
             self.node.dest = cfg['dest']
-        pass
+
+        return jsonify({
+            'code': 'ok',
+            'msg': 'configed'
+        })
 
     def config_alg(self, cfg):
         """config algorithm
@@ -109,8 +114,36 @@ class AlgNodeWeb:
         """reload algorithm"""
         if self.node:
             self.node.reload()
+            return jsonify({
+                'code': 'ok',
+                'msg': 'reloading'
+            })
         else:
-            pass
+            return jsonify({
+                'code': 'err',
+                'msg': 'no alg'
+            })
+
+
+    def check_task(self, task_id):
+        """check task status"""
+        wait_cnt = self.node.check_task(task_id)
+        stat = 'pending'
+        if wait_cnt < 0:
+            stat = 'done'
+        elif wait_cnt == 0:
+            stat = 'running'
+        elif wait_cnt > 0:
+            stat = 'pending'
+
+        return jsonify({
+            'code': 'ok',
+            'msg': {
+                'task_id': task_id,
+                'stat': stat,
+                'wait':wait_cnt
+            }
+        })
 
     def cleanup_task(self):
         """cleanup task"""
@@ -120,20 +153,19 @@ class AlgNodeWeb:
             'msg': ''
         }
 
-    def submit_task(self, task):
+    def submit_task(self):
         """submit task to node
-        :param task: dict
-        {
-            'task_id': '123',
-            'ts': '10229192',
-            'data': ['http://202.123.33.25/bfile/123.avi'],
-            'meta_data': {
-                'meta1':'1',
-                'meta2':'2'
-            }
-        }
         """
-        res = self.node.submit(task)
+        # get algtask from request
+        alg_task = AlgTask(
+            id=request.json['id'],
+            ts=request.json['ts'],
+            sources=request.json['sources'],
+            meta=request.json['meta']
+        )
+        res = self.node.submit(alg_task)
+
+        #TODO: update task status
         if res >= 0:
             return {
                 'code': 'ok',
@@ -151,11 +183,22 @@ class AlgNodeWeb:
         model_path = os.path.join(self.node.model_dir, file.filename)
         file.save(model_path)
 
-    def delete_model(self, model_info):
+    def delete_model(self):
         """upload model file"""
-        file = request.files['file']
-        model_path = os.path.join(self.node.model_dir, file.filename)
-        file.save(model_path)
+        fname = request.json.get['model_name']
+        for root, dirs, files in os.walk(self.node.model_dir):
+            for f in files:
+                if fname in f:
+                    os.remove(os.path.join(root, f))
+                    return jsonify({
+                        'code': 'ok',
+                        'msg': 'delete success'
+                    })
+
+        return jsonify({
+            'code': 'err',
+            'msg': 'model not found'
+        })
 
     def get_model_list(self):
         model_dir = self.node.model_dir
