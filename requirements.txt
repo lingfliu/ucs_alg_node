@@ -29,7 +29,6 @@ requests==2.31.0
 tomli==2.0.1
 tornado==6.4
 typing_extensions==4.11.0
-ucs_alg_node @ file:///Users/lingfengliu/git/ucs_alg_node
 urllib3==2.2.1
 Werkzeug==3.0.3
 zipp==3.18.1

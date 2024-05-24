@@ -1,9 +1,9 @@
 class AlgResult:
     """algorithm task
-    :param id: string, task id
+    :param task_id: string, task id
     :param ts: int, timestamp in milliseconds
-    :param sources: list of input data
-    :param meta: dict, meta info for
+    :param vals: values
+    :param explain: plaintext explain of results
     """
     def __init__(self, task_id, ts, vals=None, explain=""):
         self.task_id = task_id

@@ -2,6 +2,9 @@ from flask import Flask, request, jsonify
 import os
 import psutil
 from .alg_node import AlgNode
+from .alg import Alg
+from .alg_task import AlgTask
+from .alg_result import AlgResult
 
 from .cli import HttpCli
 
@@ -14,22 +17,21 @@ class AlgNodeWeb:
 
         # 接口声明
 
-        self.app.add_url_rule('api/node/stat', 'node_stat', self.get_node_stat, methods=['GET']) # 获取系统负载
+        self.app.add_url_rule('/api/node/stat', 'node_stat', self.get_node_stat, methods=['GET']) # 获取系统负载
 
-        self.app.add_url_rule('api/alg/info', 'alg_info', self.get_alg_info, methods=['GET']) # 获取算法信息
+        self.app.add_url_rule('/api/alg/info', 'alg_info', self.get_alg_info, methods=['GET']) # 获取算法信息
 
-        self.app.add_url_rule('api/alg/model/upload', 'upload_model', self.upload_model, methods=['POST']) # 上传模型
-        self.app.add_url_rule('api/alg/model/delete', 'delete_model', self.delete_model, methods=['POST']) # 删除模型
-        self.app.add_url_rule('api/alg/model/all', 'get_model_list', self.get_model_list, methods=['GET']) # 获取模型列表
-        self.app.add_url_rule('api/alg/break', 'alg_break', self.break_alg, methods=['POST']) # 清理任务
-        self.app.add_url_rule('api/alg/reload', 'reload', self.reload_alg, methods=['POST']) # 重载算法
+        self.app.add_url_rule('/api/alg/model/upload', 'upload_model', self.upload_model, methods=['POST']) # 上传模型
+        self.app.add_url_rule('/api/alg/model/delete', 'delete_model', self.delete_model, methods=['POST']) # 删除模型
+        self.app.add_url_rule('/api/alg/model/all', 'get_model_list', self.get_model_list, methods=['GET']) # 获取模型列表
+        self.app.add_url_rule('/api/alg/break', 'alg_break', self.break_alg, methods=['POST']) # 清理任务
+        self.app.add_url_rule('/api/alg/reload', 'reload', self.reload_alg, methods=['POST']) # 重载算法
 
-        self.app.add_url_rule('api/cfg/alg', 'cfg_alg', self.config_alg, methods=['POST']) # 配置算法
-        self.app.add_url_rule('api/cfg/node', 'cfg_node', self.config_node, methods=['POST']) # 配置算法
+        self.app.add_url_rule('/api/cfg/alg', 'cfg_alg', self.config_alg, methods=['POST']) # 配置算法
+        self.app.add_url_rule('/api/cfg/node', 'cfg_node', self.config_node, methods=['POST']) # 配置算法
 
-        self.app.add_url_rule('api/task/submit', 'submit_task', self.submit_task, methods=['POST']) # 提交任务
+        self.app.add_url_rule('/api/task/submit', 'submit_task', self.submit_task, methods=['POST']) # 提交任务
 
-        self.cli = HttpCli()
         self.app.run(host='localhost', port=port)
 
         self.port = port
@@ -63,20 +65,20 @@ class AlgNodeWeb:
             }
         }
 
-    def config_alg(self, cfg):
-        self.node.alg.sources = cfg['sources']
-        self.node.alg.dest = cfg['dest']
-        self.node.alg.model = cfg['model']
-
     def break_alg(self):
         """break current alg task and try the next task"""
         self.node.alg.stop()
 
-    def reload_alg(self):
-        """TODO: test"""
-        self.node.alg.reload()
+    def config_node(self, cfg):
+        if 'name' in cfg:
+            self.node.name = cfg['name']
+        if 'sources' in cfg:
+            self.node.sources = cfg['sources']
+        if 'dest' in cfg:
+            self.node.dest = cfg['dest']
+        pass
 
-    def config_alg(self, config):
+    def config_alg(self, cfg):
         """config algorithm
         called at initialization
         :param config: dict
@@ -88,41 +90,31 @@ class AlgNodeWeb:
             'dest': ''
         }
         """
-        if self.alg_node:
-            self.alg_node.reload(config)
+        if self.node:
+
+            self.node.alg.sources = cfg['sources']
+            self.node.alg.dest = cfg['dest']
+            self.node.alg.model = cfg['model']
+
+            self.node.reload()
         else:
-            self.alg_node = AlgNode(config)
+            self.node.alg = Alg(cfg)
 
         return jsonify({
             'code': 'ok',
             'msg': 'config success'
         })
 
-    def config_node(self, cfg):
-        """config submit address
-        :param submit: str
-        {
-            'node_id':'id',
-            'node_name':'name',
-            'node_desc':'desc'
-        }
-        """
-        self.alg_node.reload(cfg)
-        return {
-            'code': 'ok',
-            'msg': ''
-        }
-
     def reload_alg(self):
         """reload algorithm"""
-        if self.alg_node:
-            self.alg_node.reload()
+        if self.node:
+            self.node.reload()
         else:
             pass
 
     def cleanup_task(self):
         """cleanup task"""
-        self.alg_node.cleanup()
+        self.node.cleanup()
         return {
             'code': 'ok',
             'msg': ''
@@ -141,7 +133,7 @@ class AlgNodeWeb:
             }
         }
         """
-        res = self.alg_node.submit(task)
+        res = self.node.submit(task)
         if res >= 0:
             return {
                 'code': 'ok',
@@ -153,24 +145,24 @@ class AlgNodeWeb:
                 'msg': 'failed, code:%d' % res
             }
 
-    def upload_model(self, model_info):
+    def upload_model(self):
         """upload model file"""
         file = request.files['file']
-        model_path = os.path.join(self.alg_node.model_dir, file.filename)
+        model_path = os.path.join(self.node.model_dir, file.filename)
         file.save(model_path)
 
     def delete_model(self, model_info):
         """upload model file"""
         file = request.files['file']
-        model_path = os.path.join(self.alg_node.model_dir, file.filename)
+        model_path = os.path.join(self.node.model_dir, file.filename)
         file.save(model_path)
 
     def get_model_list(self):
-        model_dir = self.alg_node.model_dir
+        model_dir = self.node.model_dir
         models = []
         for root, dirs, files in os.walk(model_dir):
             for f in files:
-                if f.endswith('.pth'):
+                if f.endswith('.pth') or f.endswith('.pt') or f.endswith('.onnx') or f.endswith('.pb') or f.endswith('.h5'):
                     models.append({
                         'name': f,
                         'path': os.path.join(root, f)

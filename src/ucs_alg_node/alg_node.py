@@ -20,6 +20,7 @@ class AlgNode:
             self.id = cfg['id'] if 'id' in cfg else 'default'
             self.name = cfg['name'] if 'name' in cfg else 'default'
             self.mode = cfg['mode'] if 'mode' in cfg else 'batch'
+            self.model_dir = cfg['alg_dir'] if 'alg_dir' in cfg else './model'
 
             if 'alg' in cfg:
                 alg_cfg = cfg['alg']
@@ -40,7 +41,6 @@ class AlgNode:
                 )
             else:
                 self.submitter = None
-
 
         else:
             self.alg = None
