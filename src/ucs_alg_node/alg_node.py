@@ -22,6 +22,12 @@ class AlgNode:
             self.mode = cfg['mode'] if 'mode' in cfg else 'batch'
             self.model_dir = cfg['alg_dir'] if 'alg_dir' in cfg else './model'
 
+            self.thrd_stream = None
+            self.thrd_stream_running = False
+
+            self.thrd_queue = None
+            self.thrd_queue_running = False
+
             if 'alg' in cfg:
                 alg_cfg = cfg['alg']
                 # provide model's url if the model has to be specified or downloaded
@@ -46,22 +52,28 @@ class AlgNode:
             self.alg = None
             self.alg_submitter = None
 
-        self.is_running = True
 
         if self.mode == 'batch':
             self.task_queue = Queue(max_task)
-            threading.Thread(target=self._task_infer).start()
 
     def run(self):
         if self.mode == 'stream':
-            self.is_running = True
-            threading.Thread(target=self._task_stream).start()
+            self.thrd_stream = threading.Thread(target=self._task_stream)
+            self.thrd_stream.start()
+            return 0
+        elif self.mode == 'batch':
+            self.thrd_queue_running = True
+            self.thrd_queue = threading.Thread(target=self._task_infer)
+            self.thrd_queue.start()
+            return 0
+        else:
+            return -1
 
     def _task_stream(self):
         """task loop only for stream mode"""
         for res in self.alg.infer_stream():
             self.publish_result(res)
-            if not self.is_running: # loop control
+            if not self.thrd_stream_running: # loop control
                 break
 
     def submit_task(self, alg_task):
@@ -73,27 +85,26 @@ class AlgNode:
 
     def _task_infer(self):
         """runs only in batch mode"""
-        while True:
+        #TODO wrap flag with thread into a class
+        while self.thrd_queue_running:
             if self.task_queue.empty():
-                time.sleep(1)
+                time.sleep(0.1)
             else:
                 alg_task = self.task_queue.get()
                 res = self.alg.infer_batch(alg_task)
                 # wrap result with task infos
                 if res:
                     self.publish_result({
-                        'tid': alg_task.tid,
+                        'task_id': alg_task.id,
                         'task_ts': alg_task.ts,
                         'result_ts': current_time_milli(),
                         'res': res,
                     })
                 else:
                     self.publish_result({
-                        'tid': alg_task.tid,
+                        'task_id': alg_task.id,
                         'res': 'failed',
                     })
-            if not self.is_running:
-                break
 
     def reload(self):
         """TODO reload algorithm by create new algorithm"""
