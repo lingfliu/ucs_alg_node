@@ -5,8 +5,8 @@ from .utils import current_time_milli
 from .alg import Alg
 from .alg_submitter import AlgSubmitter
 
-import threading
 from queue import Queue
+from .utils import StoppableThread
 
 ALG_STATE_IDLE = 0
 ALG_STAT_PREPARE = 1 # alg is restarting or downloading model
@@ -17,64 +17,74 @@ ALG_STATE_ERROR = 3
 class AlgNode:
     def __init__(self, max_task=10, cfg=None):
         if cfg:
+            # node config
             self.id = cfg['id'] if 'id' in cfg else 'default'
             self.name = cfg['name'] if 'name' in cfg else 'default'
             self.mode = cfg['mode'] if 'mode' in cfg else 'batch'
-            self.model_dir = cfg['alg_dir'] if 'alg_dir' in cfg else './model'
+            self.model_dir = cfg['model_dir'] if 'model_dir' in cfg else './model'
 
+            # stub config
             self.thrd_stream = None
-            self.thrd_stream_running = False
-
             self.thrd_queue = None
-            self.thrd_queue_running = False
 
-            if 'alg' in cfg:
-                alg_cfg = cfg['alg']
-                # provide model's url if the model has to be specified or downloaded
-                self.alg = Alg(self.mode, alg_cfg['sources'], alg_cfg['model'])
-                self.alg.load_model()
-            else:
-                self.alg = None
+            # alg config
+            self.alg_task_id = cfg['alg_task_id'] if 'alg_task_id' in cfg else 'default'
+            self.alg = cfg['alg']
+            if self.alg:
+                self.alg.prepare()
 
-            if 'out' in cfg:
-                out_cfg = cfg['out']
-                self.submitter = AlgSubmitter(
-                    dest=out_cfg['dest'],
-                    mode=out_cfg['mode'],
-                    username=out_cfg['username'],
-                    passwd=out_cfg['passwd'],
-                    topic=out_cfg['topic'] # if in db mode, can be omitted
-                )
-            else:
-                self.submitter = None
+            self.submitter = cfg['out']
 
         else:
             self.alg = None
             self.alg_submitter = None
 
-
         if self.mode == 'batch':
             self.task_queue = Queue(max_task)
 
     def run(self):
+        self.submitter.start()
         if self.mode == 'stream':
-            self.thrd_stream = threading.Thread(target=self._task_stream)
+            self.thrd_stream = StoppableThread(task=self._task_stream)
             self.thrd_stream.start()
             return 0
         elif self.mode == 'batch':
-            self.thrd_queue_running = True
-            self.thrd_queue = threading.Thread(target=self._task_infer)
+            self.thrd_queue = True
+            self.thrd_queue = StoppableThread(task=self._task_batch)
             self.thrd_queue.start()
             return 0
         else:
             return -1
 
+    def stop(self):
+        if self.thrd_queue:
+            self.alg.stop()
+            self.thrd_queue.stop()
+        if self.thrd_stream:
+            self.alg.stop()
+            self.thrd_stream.stop()
+        self.submitter.stop()
+
     def _task_stream(self):
-        """task loop only for stream mode"""
+        """simply call infer_stream without args"""
+        tic = current_time_milli()
         for res in self.alg.infer_stream():
-            self.publish_result(res)
-            if not self.thrd_stream_running: # loop control
-                break
+            # wrap result with task infos
+            if res:
+                self.publish_result({
+                    'task_id': self.alg_task_id,
+                    'task_ts': tic,
+                    'result_ts': current_time_milli(),
+                    'res': res,
+                })
+            else:
+                self.publish_result({
+                    'task_id': self.alg_task_id,
+                    'task_ts': tic,
+                    'result_ts': current_time_milli(),
+                    'res': 'failed',
+                })
+            yield res
 
     def submit_task(self, alg_task):
         if self.mode != 'batch':
@@ -83,31 +93,28 @@ class AlgNode:
             self.task_queue.put(alg_task, block=True, timeout=5)
             return 0
 
-    def _task_infer(self):
+    def _task_batch(self):
         """runs only in batch mode"""
-        #TODO wrap flag with thread into a class
-        while self.thrd_queue_running:
-            if self.task_queue.empty():
-                time.sleep(0.1)
-            else:
-                alg_task = self.task_queue.get()
-                res = self.alg.infer_batch(alg_task)
-                # wrap result with task infos
-                if res:
-                    self.publish_result({
-                        'task_id': alg_task.id,
-                        'task_ts': alg_task.ts,
-                        'result_ts': current_time_milli(),
-                        'res': res,
-                    })
-                else:
-                    self.publish_result({
-                        'task_id': alg_task.id,
-                        'res': 'failed',
-                    })
+        if self.task_queue.empty():
+            return None
+
+        alg_task = self.task_queue.get()
+        res = self.alg.infer_batch(alg_task)
+        # wrap result with task infos
+        if res:
+            self.publish_result({
+                'task_id': alg_task.id,
+                'task_ts': alg_task.ts,
+                'result_ts': current_time_milli(),
+                'res': res,
+            })
+        else:
+            self.publish_result({
+                'task_id': alg_task.id,
+                'res': 'failed',
+            })
 
     def reload(self):
-        """TODO reload algorithm by create new algorithm"""
         if self.alg:
             self.alg.reload()
 

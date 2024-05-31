@@ -1,12 +1,15 @@
 from . import cli
 
+from .utils import StoppableThread
+from queue import Queue
+
 MODE_MQ = 'mq'
 MODE_DB = 'db'
 MODE_API = 'api'
 
 
 class AlgSubmitter:
-    def __init__(self, dest, mode, username, passwd, topic):
+    def __init__(self, dest, mode, username, passwd, topic, queue_max=100):
         self.dest = dest
         self.mode = mode
         self.username = username
@@ -42,7 +45,28 @@ class AlgSubmitter:
 
         self.cli = None
 
+        self.queue = Queue(maxsize=queue_max)
+        self.thrd_queue = None
+
+    def start(self):
+        self.thrd_queue = StoppableThread(task=self._task_queue, mode='return')
+        self.thrd_queue.start()
+
+    def stop(self):
+        self.thrd_queue.stop()
+
+    def _task_queue(self):
+        res = self.queue.get()
+        if res:
+            self._submit(res)
+            return 1
+        else:
+            return None
+
     def submit(self, result):
+        self.queue.put(result)
+
+    def _submit(self, result):
         """
         submit result to server
         :return 0 if success, -1 if failed
