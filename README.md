@@ -1,5 +1,8 @@
 # UCS algorithm wrapper service
 
+# Update log
+- 2024-05-31 v.0.1.1: alg node with stream and batch mode in script mode
+ 
 # Requirements
 1. Python 3.8.x+
 2. Flask
