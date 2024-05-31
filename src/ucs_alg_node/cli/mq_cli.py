@@ -1,5 +1,6 @@
 import nsq
-
+import time
+import tornado.ioloop
 class MqCli:
     """MQ cli, by default, using NSQ
     """
@@ -14,20 +15,26 @@ class MqCli:
         self.on_message = on_message
 
         self.nsq = nsq
-        self.rx = None
-        self.tx = nsq.Writer(nsqd_tcp_addresses=[self.host + ':' + self.port])
 
+        self.tx = nsq.Writer(nsqd_tcp_addresses=[self.host + ':' + str(self.port)])
+
+        self.rx = None
     def connect(self):
+
         self.nsq.run()
 
     def publish(self, msg):
-        self.nsq.pub(self.topic, msg)
+        # 发布消息
+        self.tx.pub(self.topic, msg, print(msg))
+
 
     def message_handle(self, msg):
         if self.on_message:
             self.on_message(msg)
+        print(msg)
+        print(msg.body)
 
     def subscribe(self, topic):
         self.rx = nsq.Reader(message_handler=self.message_handle,
-                             lookupd_http_addresses=[self.host + ':' + self.port],
+                             nsqd_tcp_addresses=[self.host + ':' + str(self.port)],
                              topic=topic, channel=self.channel, lookupd_poll_interval=15)

@@ -243,3 +243,4 @@ cython_debug/
 test/pub.py
 test/sub.py
 test/mqtt_sub.py
+/test/nsq_text.py
