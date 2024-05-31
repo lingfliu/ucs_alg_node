@@ -10,6 +10,12 @@
 # How to use
 Please refer to [demo.py](test/demo.py)
 
+# Packaging
+```shell
+pip freeze > requirements.txt
+python -m build
+```
+
 # Principles & practice
 
 ## 1. Alg
