@@ -30,7 +30,7 @@ class StoppableThread:
                     res = self.task()
 
                 if not res:
-                    time.sleep(0.01)
+                    time.sleep(0.1)
 
         elif self.mode == 'yield':
             while self.is_running:

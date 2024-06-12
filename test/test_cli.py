@@ -81,8 +81,7 @@ def test_minio_cli():
 
 
 if __name__ == '__main__':
-    # test_mqtt_cli()
+    test_mqtt_cli()
     test_redis_cli()
-    # test_mqtt_cli()
-
-    # test_minio_cli()
+    test_mq_cli()
+    test_minio_cli()
