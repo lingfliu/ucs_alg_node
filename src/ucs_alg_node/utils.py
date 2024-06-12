@@ -9,7 +9,7 @@ def current_time_milli():
 
 
 class StoppableThread:
-    def __init__(self, task, task_args=None, mode='yield'):
+    def __init__(self, task, task_args=None, mode='return'):
         self.task = task
         self.task_args = task_args
         self.thrd = None

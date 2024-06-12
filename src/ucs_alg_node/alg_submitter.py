@@ -56,19 +56,30 @@ class AlgSubmitter:
         self.thrd_queue.stop()
 
     def _task_queue(self):
-        res = self.queue.get()
-        if res:
-            self._submit(res)
-            return 1
-        else:
+        try:
+            result = self.queue.get(block=False)
+            ret = self._submit(result)
+            if ret < 0:
+                # todo log failed submission
+                self.stats = 'offline'
+                return None
+            else:
+                return 0
+        except:
+            # return None if get failed so the thread sleeps
             return None
 
     def submit(self, result):
-        self.queue.put(result)
+        try:
+            self.queue.put(result, block=False)
+            return 0
+        except:
+            return -1
+
 
     def _submit(self, result):
         """
-        submit result to server
+        submit result to mq or db
         :return 0 if success, -1 if failed
         """
         if not self.cli:

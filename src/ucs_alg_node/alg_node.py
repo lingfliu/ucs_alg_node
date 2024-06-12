@@ -51,12 +51,12 @@ class AlgNode:
 
         self.submitter.start()
         if self.mode == 'stream':
-            self.thrd_stream = StoppableThread(task=self._task_stream)
+            self.thrd_stream = StoppableThread(task=self._task_stream, mode='yield')
             self.thrd_stream.start()
             return 0
         elif self.mode == 'batch':
             self.thrd_queue = True
-            self.thrd_queue = StoppableThread(task=self._task_batch)
+            self.thrd_queue = StoppableThread(task=self._task_batch, mode='return')
             self.thrd_queue.start()
             return 0
         else:
@@ -105,7 +105,9 @@ class AlgNode:
                     'alg_id': self.alg.id,
                     'task_ts': tic,
                     'result_ts': current_time_milli(),
-                    'stats': res,
+                    'values': res['values'],
+                    'descp': res['descp'],
+                    'stats': 'done',
                 })
             else:
                 self.publish_result({
@@ -114,7 +116,9 @@ class AlgNode:
                     'alg_id': self.alg.id,
                     'task_ts': tic,
                     'result_ts': current_time_milli(),
-                    'stats': 'failed',
+                    'values': res['values'],
+                    'descp': res['descp'],
+                    'stats': 'error',
                 })
             yield res
             tic = current_time_milli()
