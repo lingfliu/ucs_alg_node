@@ -17,13 +17,13 @@ ALG_STATE_ERROR = 3
 class AlgNode:
     def __init__(self, max_task=10, cfg=None):
         if cfg:
-            # node config
+            # see demo for config example
             self.id = cfg['id'] if 'id' in cfg else 'default'
             self.name = cfg['name'] if 'name' in cfg else 'default'
             self.mode = cfg['mode'] if 'mode' in cfg else 'batch'
             self.model_dir = cfg['model_dir'] if 'model_dir' in cfg else './model'
 
-            # stub config
+            # thread config
             self.thrd_stream = None
             self.thrd_queue = None
 
@@ -36,13 +36,19 @@ class AlgNode:
             self.submitter = cfg['out']
 
         else:
+            self.mode = None
             self.alg = None
             self.alg_submitter = None
+
+        self.execute_task = None
 
         if self.mode == 'batch':
             self.task_queue = Queue(max_task)
 
     def run(self):
+        if not self.alg:
+            return -1
+
         self.submitter.start()
         if self.mode == 'stream':
             self.thrd_stream = StoppableThread(task=self._task_stream)
@@ -65,6 +71,28 @@ class AlgNode:
             self.thrd_stream.stop()
         self.submitter.stop()
 
+    def submit_task(self, alg_task):
+        if self.mode == 'stream':
+            # reload sources
+            self.execute_task = alg_task
+            self.alg.sources = alg_task.sources
+            self.alg.reload()
+            return 0
+        elif self.mode == 'batch':
+            try:
+                # throw exception if queue is full
+                self.task_queue.put(alg_task, block=False)
+                return 0
+            except:
+                return -1
+        else:
+            return -1
+
+    def set_model(self, model):
+        # alg will handle model reloading
+        self.alg.model = model
+        self.reload()
+
     def _task_stream(self):
         """simply call infer_stream without args"""
         tic = current_time_milli()
@@ -73,46 +101,48 @@ class AlgNode:
             if res:
                 self.publish_result({
                     'task_id': self.alg_task_id,
+                    'alg_name': self.alg.name,
+                    'alg_id': self.alg.id,
                     'task_ts': tic,
+                    'result_ts': current_time_milli(),
+                    'stats': res,
+                })
+            else:
+                self.publish_result({
+                    'task_id': self.alg_task_id,
+                    'alg_name': self.alg.name,
+                    'alg_id': self.alg.id,
+                    'task_ts': tic,
+                    'result_ts': current_time_milli(),
+                    'stats': 'failed',
+                })
+            yield res
+            tic = current_time_milli()
+
+    def _task_batch(self):
+        """runs only in batch mode"""
+        try:
+            alg_task = self.task_queue.get(block=False)
+
+            self.execute_task = alg_task
+            alg_task.stats = 'running'
+            res = self.alg.infer_batch(alg_task)
+            # wrap result with task infos
+            if res:
+                self.publish_result({
+                    'task_id': alg_task.id,
+                    'task_ts': alg_task.ts,
                     'result_ts': current_time_milli(),
                     'res': res,
                 })
             else:
                 self.publish_result({
-                    'task_id': self.alg_task_id,
-                    'task_ts': tic,
-                    'result_ts': current_time_milli(),
+                    'task_id': alg_task.id,
                     'res': 'failed',
                 })
-            yield res
-
-    def submit_task(self, alg_task):
-        if self.mode != 'batch':
-            return -1
-        else:
-            self.task_queue.put(alg_task, block=True, timeout=5)
-            return 0
-
-    def _task_batch(self):
-        """runs only in batch mode"""
-        if self.task_queue.empty():
+        except:
             return None
 
-        alg_task = self.task_queue.get()
-        res = self.alg.infer_batch(alg_task)
-        # wrap result with task infos
-        if res:
-            self.publish_result({
-                'task_id': alg_task.id,
-                'task_ts': alg_task.ts,
-                'result_ts': current_time_milli(),
-                'res': res,
-            })
-        else:
-            self.publish_result({
-                'task_id': alg_task.id,
-                'res': 'failed',
-            })
 
     def reload(self):
         if self.alg:
@@ -120,17 +150,26 @@ class AlgNode:
 
     def publish_result(self, res):
         if self.submitter:
-            self.submitter.submit(res)
-            return 0
+            ret = self.submitter.submit(res)
+            if ret < 0:
+                return -1
+            else:
+                return 0
         else:
             return -1
 
     def check_task(self, task_id):
-        """check task status"""
+        """
+        check task status in one of: 'pending', 'error', 'running', 'done', 'unknown'
+        todo: store task status in local db
+        """
+        if self.execute_task.id == task_id:
+            return 'running'
+
         for idx, task in enumerate(self.task_queue.queue):
             if task.id == task_id:
-                return idx
+                return 'pending'
 
-        return -1
+        return 'unknown'
 
 
