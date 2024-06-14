@@ -28,7 +28,8 @@ class AlgNode:
             self.thrd_queue = None
 
             # alg config
-            self.alg_task_id = cfg['alg_task_id'] if 'alg_task_id' in cfg else 'default'
+            self.alg_id = cfg['alg_id'] if 'alg_id' in cfg else 'default'
+            self.task_id = cfg['task_id'] if 'task_id' in cfg else 'default'
             self.alg = cfg['alg']
             if self.alg:
                 self.alg.prepare()
@@ -45,7 +46,7 @@ class AlgNode:
         if self.mode == 'batch':
             self.task_queue = Queue(max_task)
 
-    def run(self):
+    def start(self):
         if not self.alg:
             return -1
 
@@ -100,24 +101,24 @@ class AlgNode:
             # wrap result with task infos
             if res:
                 self.publish_result({
-                    'task_id': self.alg_task_id,
+                    'task_id': self.task_id,
                     'alg_name': self.alg.name,
                     'alg_id': self.alg.id,
                     'task_ts': tic,
                     'result_ts': current_time_milli(),
-                    'values': res['values'],
-                    'descp': res['descp'],
+                    'values': res.vals,
+                    'descp': res.explain,
                     'stats': 'done',
                 })
             else:
                 self.publish_result({
-                    'task_id': self.alg_task_id,
+                    'task_id': self.task_id,
                     'alg_name': self.alg.name,
                     'alg_id': self.alg.id,
                     'task_ts': tic,
                     'result_ts': current_time_milli(),
-                    'values': res['values'],
-                    'descp': res['descp'],
+                    'values': None,
+                    'descp': None,
                     'stats': 'error',
                 })
             yield res

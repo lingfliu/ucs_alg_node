@@ -3,8 +3,10 @@ import time
 
 
 class MyAlg(Alg):
-    def __init__(self, mode, sources, model):
+    def __init__(self, mode, sources, model, id=None):
         super().__init__(mode, sources, model)
+        self.name = 'my_alg'
+        self.id = id
 
     def infer_stream(self):
         for i in range(10):
@@ -17,6 +19,8 @@ def main():
         'name': 'alg_name',
         'mode': 'stream',
         'max_task': 10,
+        'id': 'node',
+        'alg_id': 'alg_id123', # only effective in batch mode
 
         'alg': {
             'name': 'my_alg',
@@ -24,7 +28,7 @@ def main():
             'task_id': 'task_id123',
             # only effective in stream mode
             'sources': ['rtsp://localhost:9111/123',
-                        'mqx://localhost:8011//1123'],
+                        'mqx://localhost:8011/1123'],
             'model': 'model_v1.pth', # could be file path or url or model name
         },
         'out': {
@@ -49,17 +53,19 @@ def main():
     )
 
     node_cfg = {
+        'id': cfg['id'],
         'name': cfg['name'],
         'max_task': cfg['max_task'], # only effective in batch mode
         'mode': cfg['mode'],
         'alg': alg,
         'out': submitter
     }
+
     node = AlgNode(max_task=10, cfg=node_cfg)
     # node_web_api = AlgNodeWeb(config['port'], node)
 
     # node_web_api.run()
-    node.run()
+    node.start()
 
     print('start node')
     while True:

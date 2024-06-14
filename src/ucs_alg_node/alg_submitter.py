@@ -61,6 +61,7 @@ class AlgSubmitter:
             ret = self._submit(result)
             if ret < 0:
                 # todo log failed submission
+                print('result submit failed', result)
                 self.stats = 'offline'
                 return None
             else:
