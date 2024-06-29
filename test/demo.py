@@ -1,11 +1,12 @@
-from src.ucs_alg_node import AlgNode, Alg, AlgResult, AlgSubmitter
+from src.ucs_alg_node import AlgNode, Alg, AlgResult, AlgSubmitter, AlgNodeWeb
 import time
 
 
 class MyAlg(Alg):
-    def __init__(self, mode, sources, model, id=None):
-        super().__init__(mode, sources, model)
+    def __init__(self, mode, sources, model, id):
+        super().__init__(mode, model)
         self.name = 'my_alg'
+        self.sources = sources
         self.id = id
 
     def infer_stream(self):
@@ -22,6 +23,7 @@ def main():
         'max_task': 10,
         'model_dir': './model',  # could be file path or url or model name
         'alg_id': 'alg_id123', # only effective in batch mode
+        'web_port':9996
     }
 
     task = {
@@ -67,17 +69,18 @@ def main():
     }
 
     node = AlgNode(max_task=10, cfg=node_cfg, task=task)
-    # node_web_api = AlgNodeWeb(config['port'], node)
+    node_web_api = AlgNodeWeb(cfg['web_port'], node)
 
     # node_web_api.run()
-    node.start()
+    # node.start()
+    node_web_api.run()
 
     print('start node')
     while True:
         time.sleep(5)
-        node.stop()
-        print('stop node, exit')
-        break
+        # node.stop()
+        # print('stop node, exit')
+        # break
 
 if __name__ == '__main__':
     main()
