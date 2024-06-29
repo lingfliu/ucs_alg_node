@@ -1,6 +1,8 @@
 import datetime
+import threading
 import time
 from threading import Thread
+import ctypes
 
 
 def current_time_milli():
@@ -45,3 +47,38 @@ class StoppableThread:
 
     def stop(self):
         self.is_running = False
+
+class InteruptableThread(Thread):
+    def __init__(self, target, args):
+        Thread.__init__(self, target=target, args=args)
+        self._target = target
+        self._args = args
+
+
+    def run(self):
+        try:
+            self._target(*self._args)
+        finally:
+            # thread stopped
+            pass
+
+    def get_id(self):
+        if hasattr(self, '_thread_id'):
+            return self._thread_id
+        for id, thread in threading._active.items():
+            if thread is self:
+                return id
+
+    def skip(self):
+        thread_id = self.get_id()
+        res = ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, ctypes.py_object(SystemExit))
+        if res == 0:
+            # raise ValueError('invalid thread id')
+
+            # thread already finished
+            pass
+        elif res != 1:
+            # if it returns a number greater than one, you're in trouble,
+            # and you should call it again with exc=NULL to revert the effect
+            ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, 0)
+            raise SystemError('PyThreadState_SetAsyncExc failed')

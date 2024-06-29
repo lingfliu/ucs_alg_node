@@ -15,7 +15,21 @@ ALG_STATE_ERROR = 3
 
 
 class AlgNode:
-    def __init__(self, max_task=10, cfg=None):
+
+    """
+    :param cfg: {
+        'id': str, node id,
+        'name': str, node name,
+        'mode': str, 'stream' or 'batch',
+        'max_task': int, max task in queue if in batch mode,
+        'alg': Alg, algorithm instance,
+        'model_dir': str, model directory, by default './model',
+        'out': AlgSubmitter, submitter instance,
+        'alg_id': str, algorithm id, only effective in batch mode
+        'task_id': str, task id, only effective in stream mode,
+    }
+    """
+    def __init__(self, max_task=10, cfg=None, task=None):
         if cfg:
             # see demo for config example
             self.id = cfg['id'] if 'id' in cfg else 'default'
@@ -23,25 +37,25 @@ class AlgNode:
             self.mode = cfg['mode'] if 'mode' in cfg else 'batch'
             self.model_dir = cfg['model_dir'] if 'model_dir' in cfg else './model'
 
-            # thread config
-            self.thrd_stream = None
-            self.thrd_queue = None
-
             # alg config
-            self.alg_id = cfg['alg_id'] if 'alg_id' in cfg else 'default'
-            self.task_id = cfg['task_id'] if 'task_id' in cfg else 'default'
             self.alg = cfg['alg']
             if self.alg:
-                self.alg.prepare()
+                self.alg.init()
 
             self.submitter = cfg['out']
+
+            self.task = task
 
         else:
             self.mode = None
             self.alg = None
             self.alg_submitter = None
+            self.task = task
 
-        self.execute_task = None
+        # thread config
+        self.thrd_stream = None
+        self.thrd_batch = None
+
 
         if self.mode == 'batch':
             self.task_queue = Queue(max_task)
@@ -57,27 +71,25 @@ class AlgNode:
             return 0
         elif self.mode == 'batch':
             self.thrd_queue = True
-            self.thrd_queue = StoppableThread(task=self._task_batch, mode='return')
-            self.thrd_queue.start()
+            self.thrd_batch = StoppableThread(task=self._task_batch, mode='return')
+            self.thrd_batch.start()
             return 0
         else:
             return -1
 
     def stop(self):
-        if self.thrd_queue:
-            self.alg.stop()
-            self.thrd_queue.stop()
+        if self.thrd_batch:
+            self.thrd_batch.stop()
         if self.thrd_stream:
-            self.alg.stop()
             self.thrd_stream.stop()
         self.submitter.stop()
 
     def submit_task(self, alg_task):
         if self.mode == 'stream':
             # reload sources
-            self.execute_task = alg_task
-            self.alg.sources = alg_task.sources
-            self.alg.reload()
+            self.task = alg_task
+            self.alg.sources = self.task.sources
+            self.reload()
             return 0
         elif self.mode == 'batch':
             try:
@@ -85,6 +97,7 @@ class AlgNode:
                 self.task_queue.put(alg_task, block=False)
                 return 0
             except:
+                print("task queue full")
                 return -1
         else:
             return -1
@@ -101,7 +114,7 @@ class AlgNode:
             # wrap result with task infos
             if res:
                 self.publish_result({
-                    'task_id': self.task_id,
+                    'task_id': self.task['id'],
                     'alg_name': self.alg.name,
                     'alg_id': self.alg.id,
                     'task_ts': tic,
@@ -112,7 +125,7 @@ class AlgNode:
                 })
             else:
                 self.publish_result({
-                    'task_id': self.task_id,
+                    'task_id': self.task['id'],
                     'alg_name': self.alg.name,
                     'alg_id': self.alg.id,
                     'task_ts': tic,
@@ -150,8 +163,20 @@ class AlgNode:
 
 
     def reload(self):
+
         if self.alg:
             self.alg.reload()
+
+        if self.mode == 'stream':
+            if self.thrd_stream:
+                self.thrd_stream.stop()
+            self.thrd_stream = StoppableThread(task=self._task_stream, mode='yield')
+            self.thrd_stream.start()
+        elif self.mode == 'batch':
+            if self.thrd_batch:
+                self.thrd_batch.stop()
+            self.thrd_batch = StoppableThread(task=self._task_batch, mode='return')
+            self.thrd_batch.start()
 
     def publish_result(self, res):
         if self.submitter:
@@ -162,19 +187,3 @@ class AlgNode:
                 return 0
         else:
             return -1
-
-    def check_task(self, task_id):
-        """
-        check task status in one of: 'pending', 'error', 'running', 'done', 'unknown'
-        todo: store task status in local db
-        """
-        if self.execute_task.id == task_id:
-            return 'running'
-
-        for idx, task in enumerate(self.task_queue.queue):
-            if task.id == task_id:
-                return 'pending'
-
-        return 'unknown'
-
-
