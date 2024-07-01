@@ -53,10 +53,13 @@ class AlgNodeWeb:
     def get_alg_info(self):
         """get algorithm info"""
         return {
-            'name': self.node.name,
-            'alg_id': self.node.id,
-            'sources': self.node.alg.sources,
-            'dest': self.node.submitter.dest
+            'code': 'ok',
+            'msg': {
+                'name': self.node.name,
+                'alg_id': self.node.id,
+                'sources': self.node.alg.sources,
+                'dest': self.node.submitter.dest
+            }
         }
 
     def get_task_info(self):
