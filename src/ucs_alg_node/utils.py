@@ -48,19 +48,27 @@ class StoppableThread:
     def stop(self):
         self.is_running = False
 
-class InteruptableThread(Thread):
-    def __init__(self, target, args):
+class InterruptableThread(Thread):
+    def __init__(self, target, args=(), timeout=None):
         Thread.__init__(self, target=target, args=args)
         self._target = target
         self._args = args
-
+        self.timeout = timeout
+        self.stat = 'idle'
+        self.ret = None
 
     def run(self):
+        tic = time.time()
+        self.stat = 'running'
         try:
-            self._target(*self._args)
+            self.ret = self._target(*self._args)
+            self.stat = 'done'
         finally:
             # thread stopped
-            pass
+            toc = time.time()
+            if self.timeout:
+                if toc - tic > self.timeout:
+                    self.stat = 'timeout'
 
     def get_id(self):
         if hasattr(self, '_thread_id'):
@@ -82,3 +90,71 @@ class InteruptableThread(Thread):
             # and you should call it again with exc=NULL to revert the effect
             ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, 0)
             raise SystemError('PyThreadState_SetAsyncExc failed')
+
+class ThreadEx(Thread):
+    """a simple thread extension supporting:
+    1. return & yield mode
+    2. task skip & stop
+    3. timeout handling
+    """
+    def __init__(self, task, args=(), input=None, mode="return", timeout=None, post_task=None):
+        Thread.__init__(self, target=task, args=args)
+        self._target = task
+        # if in return mode, args should be iterable
+        self._args = args
+
+        self.input = input
+        self.mode = mode
+        self.timeout = timeout
+
+        self.post_task = post_task
+
+        self.is_running = True
+        self.stat = 'idle'
+        self.exc_task = None
+
+    def _input_bind_task(self, task, args, input):
+        if input is not None:
+            return task(*args, input)
+        else:
+            return task(*args)
+
+    def _yield_task(self, task, args):
+        for x in task(*args):
+            self.post_task('done', x)
+    def run(self):
+        self.stat = 'running'
+        if self.mode == 'return':
+            while self.is_running:
+                if not self.input:
+                    self.is_running = False
+                    break
+
+                x = self.input()
+                if x is None:
+                    # all tasks done, quit the loop
+                    self.is_running = False
+                    break
+
+                self.exc_task = InterruptableThread(self._input_bind_task, (self._target, self._args, x))
+                self.exc_task.start()
+                self.exc_task.join(timeout=self.timeout)
+                self.stat = self.exc_task.stat
+                self.post_task(self.stat, self.exc_task.ret)
+
+        elif self.mode == "yield":
+            while self.is_running:
+                self.exc_task = InterruptableThread(self._yield_task, (self._target, self._args))
+                self.exc_task.start()
+                self.exc_task.join() # will not timeout
+
+
+    def skip(self):
+        if self.exc_task:
+            self.exc_task.skip()
+        self.stat = 'skip'
+
+    def stop(self):
+        self.is_running = False
+        self.skip()
+        self.stat = 'stop'

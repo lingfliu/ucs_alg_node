@@ -69,18 +69,17 @@ def main():
     }
 
     node = AlgNode(max_task=10, cfg=node_cfg, task=task)
-    node_web_api = AlgNodeWeb(cfg['web_port'], node)
+    # node_web_api = AlgNodeWeb(cfg['web_port'], node)
 
+    node.start()
     # node_web_api.run()
-    # node.start()
-    node_web_api.run()
 
     print('start node')
     while True:
         time.sleep(5)
-        # node.stop()
-        # print('stop node, exit')
-        # break
+        node.stop()
+        print('stop node, exit')
+        break
 
 if __name__ == '__main__':
     main()

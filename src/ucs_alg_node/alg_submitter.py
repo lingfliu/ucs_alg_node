@@ -1,7 +1,10 @@
+import os
+
 from . import cli
 
-from .utils import StoppableThread
+from .utils import StoppableThread, current_time_milli
 from queue import Queue
+
 
 MODE_MQ = 'mq'
 MODE_DB = 'db'
@@ -86,6 +89,21 @@ class AlgSubmitter:
         if not self.cli:
             return -1
         else:
+
+            if result.has_key('file'):
+                # upload file into minio
+                fname = result['task_id'] + '_' + str(current_time_milli())
+                res = self.file_cli.upload(fname, result['file'])
+                if res >= 0:
+                    # convert local path to minio file name
+                    result['file'] = fname
+                    # remove local file
+                    os.remove(result['file'])
+                else:
+                    # failed to upload file
+                    os.remove(result['file'])
+                    return -1
+
             if self.output_type == 'http':
                 return self.cli.submit(result.task_id, result)
             elif self.output_type == 'mqtt':

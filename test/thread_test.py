@@ -1,4 +1,4 @@
-from src.ucs_alg_node.utils import InteruptableThread
+from src.ucs_alg_node.utils import InterruptableThread
 import time
 
 def _task(input):
@@ -8,7 +8,7 @@ def _task(input):
     print('task done')
 
 
-thrd = InteruptableThread(_task, ('input',))
+thrd = InterruptableThread(_task, ('input',))
 
 thrd.start()
 

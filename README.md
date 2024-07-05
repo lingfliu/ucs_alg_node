@@ -12,7 +12,6 @@ Please refer to [demo.py](test/demo.py)
 
 # Packaging
 ```shell
-pip freeze > requirements.txt
 python -m build
 ```
 
