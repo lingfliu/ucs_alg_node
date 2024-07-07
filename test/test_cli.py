@@ -1,23 +1,70 @@
-from src.ucs_alg_node.cli import *
+import threading
+import time
+
+from src.ucs_alg_node.cli import MqttCli, RedisCli, MqCli, MinioCli
+from src.ucs_alg_node.utils import InterruptableThread, ThreadEx
+
+# host = '62.234.16.239'
+host = 'localhost'
+port = 1883
 
 def test_mqtt_cli():
-    mqtt_cli = MqttCli(
-        host = 'localhost',
-        port = '18083',
-        username = 'admin',#默认账号
-        passwd = 'public',#默认密码
-        topics = None
+    cli = MqttCli(
+        host = host,
+        port = port,
+        username = 'admin',
+        passwd = 'vivi1234',
+        topics = ['ucs/alg/res'],
+        id = 'node112'
     )
 
-    def on_connect():
-        print('connected to EMQX')
-    mqtt_cli.on_connect = on_connect()
 
-    mqtt_cli.subscribe('ucs/alg/res')
-    mqtt_cli.publish('ucs/alg/res', {
-        'status': 'ok',
-        'msg': 'connected'
-    })
+    # while cli.stat != 'connected':
+    #     time.sleep(0.1)
+    #     print('connecting...')
+
+    msg_list = [i for i in range(10)]
+    def input():
+        if len(msg_list) > 0:
+            return msg_list.pop(0)
+        else:
+            return None
+
+
+    def task(i):
+        return {
+            'result': 'ok',
+            'msg': {
+                'ts': time.time_ns(),
+                'value': i
+            }
+        }
+
+    def post_task(stat, ret):
+        cli.publish('ucs/alg/res', ret)
+
+
+
+    def _task_publish():
+        while cli.stat != 'connected':
+            time.sleep(0.1)
+            print('connecting...')
+        thrd = ThreadEx(task=task, args=(), input=input, post_task=post_task, mode='return', timeout=10)
+        thrd.start()
+        thrd.join()
+
+    thrdG = threading.Thread(target=_task_publish)
+    thrdG.start()
+
+    cli.connect()
+    cli.cli.loop_forever()
+
+    # while True:
+    #     time.sleep(1)
+    # print('finished, quit program')
+
+
+
 
 def test_redis_cli():
     redis_cli = RedisCli(
@@ -82,6 +129,6 @@ def test_minio_cli():
 
 if __name__ == '__main__':
     test_mqtt_cli()
-    test_redis_cli()
-    test_mq_cli()
-    test_minio_cli()
+    # test_redis_cli()
+    # test_mq_cli()
+    # test_minio_cli()
