@@ -13,11 +13,13 @@ MODE_API = 'api'
 
 class AlgSubmitter:
     def __init__(self, dest, mode, username, passwd, topic, queue_max=100):
+        # TODO: file cli config
         self.dest = dest
         self.mode = mode
         self.username = username
         self.passwd = passwd
         self.topic = topic
+        self.file_cli = None
 
         output_type = dest.split(':')[0]
         self.output_type = output_type

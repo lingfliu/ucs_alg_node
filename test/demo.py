@@ -1,4 +1,4 @@
-from src.ucs_alg_node import AlgNode, Alg, AlgResult, AlgSubmitter, AlgNodeWeb
+from src.ucs_alg_node import AlgNode, Alg, AlgResult, AlgSubmitter, AlgNodeWeb, AlgTask, utils
 import time
 
 
@@ -12,7 +12,10 @@ class MyAlg(Alg):
     def infer_stream(self):
         for i in range(100):
             time.sleep(0.1)
-            yield AlgResult(0, 0, 1, "stub result")
+            result = AlgResult(0, 0, 1, "stub result")
+            print('result:', str(result))
+            yield result
+
 
 
 def main():
@@ -26,11 +29,10 @@ def main():
         'web_port':9996
     }
 
-    task = {
-        'id': 'task_id123',
-        'sources': ['rtsp://localhost:9111/123',
-                    'mqx://localhost:8011/1123'],
-    }
+    task = AlgTask(id='task_id123',
+                   ts=utils.current_time_milli(),
+                   sources= ['rtsp://localhost:9111/123',
+                             'mqx://localhost:8011/1123'])
 
     alg_cfg = {
         # only effective in stream mode
@@ -47,7 +49,7 @@ def main():
         'topic': 'alg'
     }
 
-    alg = MyAlg(cfg['mode'], task['sources'], alg_cfg['model'], alg_cfg['alg_id'])
+    alg = MyAlg(cfg['mode'], task.sources, alg_cfg['model'], alg_cfg['alg_id'])
 
     submitter = AlgSubmitter(
         dest=out_cfg['dest'],

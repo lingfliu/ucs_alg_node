@@ -6,7 +6,7 @@ from .alg import Alg
 from .alg_submitter import AlgSubmitter
 
 from queue import Queue
-from .utils import StoppableThread
+from .utils import ThreadEx
 
 ALG_STATE_IDLE = 0
 ALG_STAT_PREPARE = 1 # alg is restarting or downloading model
@@ -37,6 +37,7 @@ class AlgNode:
             self.mode = cfg['mode'] if 'mode' in cfg else 'batch'
             self.model_dir = cfg['model_dir'] if 'model_dir' in cfg else './model'
 
+            self.alg_timeout = cfg['alg_timeout'] if 'alg_timeout' in cfg else None
             # alg config
             self.alg = cfg['alg']
             if self.alg:
@@ -64,14 +65,21 @@ class AlgNode:
         if not self.alg:
             return -1
 
+        def input():
+            try:
+                alg_task = self.task_queue.get(block=True)
+                return alg_task
+            except:
+                return None
+
         self.submitter.start()
         if self.mode == 'stream':
-            self.thrd_stream = StoppableThread(task=self._task_stream, mode='yield')
+            self.thrd_stream = ThreadEx(task=self._task_stream, args=(), mode='yield', post_task=self.publish_result)
             self.thrd_stream.start()
             return 0
         elif self.mode == 'batch':
             self.thrd_queue = True
-            self.thrd_batch = StoppableThread(task=self._task_batch, mode='return')
+            self.thrd_batch = ThreadEx(task=self._task_batch, args=(), input=input, mode='return', timeout=self.alg_timeout, post_task=self.publish_result)
             self.thrd_batch.start()
             return 0
         else:
@@ -83,6 +91,14 @@ class AlgNode:
         if self.thrd_stream:
             self.thrd_stream.stop()
         self.submitter.stop()
+
+    def skip(self):
+        if self.mode == 'batch':
+            self.thrd_batch.skip()
+            return 0
+        else:
+            # stream mode does not support skipping
+            return -1
 
     def submit_task(self, alg_task):
         if self.mode == 'stream':
@@ -109,58 +125,53 @@ class AlgNode:
 
     def _task_stream(self):
         """simply call infer_stream without args"""
-        tic = current_time_milli()
-        for res in self.alg.infer_stream():
-            # wrap result with task infos
-            if res:
-                self.publish_result({
-                    'task_id': self.task['id'],
-                    'alg_name': self.alg.name,
-                    'alg_id': self.alg.id,
-                    'task_ts': tic,
-                    'result_ts': current_time_milli(),
-                    'values': res.vals,
-                    'descp': res.explain,
-                    'stats': 'done',
-                })
-            else:
-                self.publish_result({
-                    'task_id': self.task['id'],
-                    'alg_name': self.alg.name,
-                    'alg_id': self.alg.id,
-                    'task_ts': tic,
-                    'result_ts': current_time_milli(),
-                    'values': None,
-                    'descp': None,
-                    'stats': 'error',
-                })
-            yield res
-            tic = current_time_milli()
+        self.task.ts = current_time_milli()
+        for ret in self.alg.infer_stream():
+            result = self.wrap_result(self.task, ret)
+            self.task.ts = current_time_milli()
+            yield result
 
-    def _task_batch(self):
+    def _task_batch(self, alg_task):
         """runs only in batch mode"""
-        try:
-            alg_task = self.task_queue.get(block=False)
+        self.execute_task = alg_task
+        alg_task.stats = 'running'
+        ret = self.alg.infer_batch(alg_task)
+        # wrap result with task infos
+        result = self.wrap_result(alg_task, alg_task.tic, ret)
+        return result
 
-            self.execute_task = alg_task
-            alg_task.stats = 'running'
-            res = self.alg.infer_batch(alg_task)
-            # wrap result with task infos
-            if res:
-                self.publish_result({
-                    'task_id': alg_task.id,
-                    'task_ts': alg_task.ts,
-                    'result_ts': current_time_milli(),
-                    'res': res,
-                })
-            else:
-                self.publish_result({
-                    'task_id': alg_task.id,
-                    'res': 'failed',
-                })
-        except:
-            return None
+    def wrap_result(self, task, ret):
+        """
+        wrap result with task infos
+        :param task: 
+        :param tic: time of execution
+        :param ret: result from alg
+        :return:
+        """
+        if ret and ret.vals:
+            result = {
+                'task_id': task.id,
+                'alg_name': self.alg.name,
+                'alg_id': self.alg.id,
+                'task_ts': task.ts,
+                'result_ts': current_time_milli(),
+                'values': ret.vals,
+                'descp': ret.explain if ret.explain else '',
+                'stats': 'done',
+            }
+        else:
+            result = {
+                'task_id': task['id'],
+                'alg_name': self.alg.name,
+                'alg_id': self.alg.id,
+                'task_ts': task.ts,
+                'result_ts': current_time_milli(),
+                'values': None,
+                'descp': '',
+                'stats': 'error',
+            }
 
+        return result
 
     def reload(self):
 
@@ -168,20 +179,23 @@ class AlgNode:
             self.alg.reload()
 
         if self.mode == 'stream':
-            if self.thrd_stream:
-                self.thrd_stream.stop()
-            self.thrd_stream = StoppableThread(task=self._task_stream, mode='yield')
+            self.thrd_stream = ThreadEx(task=self._task_stream, args=(), mode='yield', timeout=self.alg_timeout,
+                                        post_task=self.publish_result)
             self.thrd_stream.start()
+            return 0
         elif self.mode == 'batch':
-            if self.thrd_batch:
-                self.thrd_batch.stop()
-            self.thrd_batch = StoppableThread(task=self._task_batch, mode='return')
+            self.thrd_queue = True
+            self.thrd_batch = ThreadEx(task=self._task_batch, args=(), input=input, mode='return',
+                                       timeout=self.alg_timeout, post_task=self.publish_result)
             self.thrd_batch.start()
+            return 0
+        else:
+            return -1
 
-    def publish_result(self, res):
+    def publish_result(self, ret):
         if self.submitter:
-            ret = self.submitter.submit(res)
-            if ret < 0:
+            ok = self.submitter.submit(ret)
+            if ok < 0:
                 return -1
             else:
                 return 0

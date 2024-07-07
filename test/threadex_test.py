@@ -16,14 +16,14 @@ def _task_stream(x):
         yield i*x
         i += 1
 
-def _task_batch(x, y=None):
-    if not y is None:
-        print('running task:', x, y, 'sleep for 1 sec', 'at', current_time_milli())
+def _task_batch(x, input=None):
+    if not input is None:
+        print('running task:', x, input, 'sleep for 1 sec', 'at', current_time_milli())
         time.sleep(1)
-        return x+y
+        return x+input
     else:
-        print('running task:', x, y, 'sleep for 1 sec', 'at', current_time_milli())
-        return None
+        print('running task:', x, input, 'sleep for 1 sec', 'at', current_time_milli())
+        return x
 
 def result_handling(stat, res):
     print('task stat', stat, 'handling result:', res)

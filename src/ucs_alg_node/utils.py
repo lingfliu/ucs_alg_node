@@ -49,24 +49,30 @@ class StoppableThread:
         self.is_running = False
 
 class InterruptableThread(Thread):
-    def __init__(self, target, args=(), timeout=None):
+    def __init__(self, target, args=(), timeout=None, mode='return'):
         Thread.__init__(self, target=target, args=args)
         self._target = target
         self._args = args
         self.timeout = timeout
         self.stat = 'idle'
         self.ret = None
+        self.mode = mode
 
     def run(self):
+        # todo: yield task
         tic = time.time()
         self.stat = 'running'
         try:
-            self.ret = self._target(*self._args)
-            self.stat = 'done'
+            if self.mode == 'return':
+                self.ret = self._target(*self._args)
+                self.stat = 'done'
+                return
+            elif self.mode == 'yield':
+                self._target(*self._args)
         finally:
             # thread stopped
             toc = time.time()
-            if self.timeout:
+            if not self.timeout is None:
                 if toc - tic > self.timeout:
                     self.stat = 'timeout'
 
@@ -121,7 +127,8 @@ class ThreadEx(Thread):
 
     def _yield_task(self, task, args):
         for x in task(*args):
-            self.post_task('done', x)
+            self.post_task(x)
+
     def run(self):
         self.stat = 'running'
         if self.mode == 'return':
@@ -144,9 +151,9 @@ class ThreadEx(Thread):
 
         elif self.mode == "yield":
             while self.is_running:
-                self.exc_task = InterruptableThread(self._yield_task, (self._target, self._args))
+                self.exc_task = InterruptableThread(self._yield_task, (self._target, self._args), mode='yield')
                 self.exc_task.start()
-                self.exc_task.join() # will not timeout
+                self.exc_task.join(timeout=self.timeout) # will not timeout until stop is called
 
 
     def skip(self):
