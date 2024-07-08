@@ -10,7 +10,7 @@ def on_message(topic, msg):
 def on_connect():
     cli.publish('ucs/alg/res', 'hello')
 
-cli = MqttCli(host, port, 'admin', 'vivi1234', ['ucs/alg/res'], 'node112', on_connect=on_connect, on_message=on_message)
+cli = MqttCli(host, port, 'admin', 'vivi1234', ['ucs/alg/res'], 'node112')
 
 def on_connect():
     cli.publish('ucs/alg/res', 'hello')

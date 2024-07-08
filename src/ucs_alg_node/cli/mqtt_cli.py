@@ -30,6 +30,9 @@ class MqttCli:
         self.active_disconnect = False
         self.thrd_conn = None
 
+        self.cli.on_connect = self._on_connect
+        self.cli.on_message = self._on_msg
+
     def connect(self):
         self.stat = STAT_CONNECTING
         self.cli.connect(self.host, self.port, 60)
@@ -89,6 +92,7 @@ class MqttCli:
 
     def _on_msg(self, client, userdata, msg):
         print('received', msg.topic + " " + str(msg.payload))
+
 
     def _task_net(self):
         while self.stat != STAT_CONNECTED:
