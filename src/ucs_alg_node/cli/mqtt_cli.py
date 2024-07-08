@@ -1,4 +1,5 @@
 import time
+import json
 
 import paho.mqtt.client as mqtt
 
@@ -30,21 +31,50 @@ class MqttCli:
         self.active_disconnect = False
         self.thrd_conn = None
 
-        self.cli.on_connect = self._on_connect
-        self.cli.on_message = self._on_msg
+        def _on_connect(client, userdata, flags, rc, prop):
+            if rc == 'Success':
+                print("connected to Emqx")
+                self.stat = STAT_CONNECTED
+                for topic in self.topics:
+                    self.cli.subscribe(topic)
+            else:
+                print("failed to connect, return code %d\n", rc)
+                self.stat = STAT_DISCONNECTED
+
+        def _on_disconnect(client, userdata, df, rc, prop):
+            # print("Disconnected from MQTT Broker!")
+            self.stat = STAT_DISCONNECTED
+
+        def _on_subscribe(client, userdata, mid, rc, properties):
+            pass
+            # print("Subscribed to topic with %s" % rc[0])
+
+        def _on_publish(client, userdata, mid, rc, properties):
+            pass
+            # print("Published message with mid %d" % mid)
+
+        def _on_msg(client, userdata, msg):
+            # print('received', msg.topic + " " + str(msg.payload))
+            if msg.topic in self.msg_cb:
+                self.msg_cb[msg.topic](msg.topic, msg.payload)
+
+        self.cli.on_connect = _on_connect
+        self.cli.on_message = _on_msg
+        self.cli.on_disconnect = _on_disconnect
+        self.cli.on_subscribe = _on_subscribe
+        self.cli.on_publish = _on_publish
 
     def connect(self):
         self.stat = STAT_CONNECTING
-        self.cli.connect(self.host, self.port, 60)
+        self.cli.connect(self.host, self.port, 10)
+        self.cli.loop_start()
         return 0
-
-    def reconnect(self):
-        self.connect()
 
     def disconnect(self):
         self.active_disconnect = True
         self.stat = STAT_DISCONNECTED
         self.cli.disconnect()
+        self.cli.loop_stop()
         return 0
 
     def publish(self, topic=None, msg=None):
@@ -56,7 +86,8 @@ class MqttCli:
         if not topic:
             if len(self.topics) > 0:
                 if msg:
-                    self.cli.publish(self.topics[0], msg)
+                    ret = self.cli.publish(self.topics[0], json.dumps(msg))
+                    ret.wait_for_publish(timeout=10)
                     return 0
                 else:
                     return -1
@@ -64,46 +95,27 @@ class MqttCli:
                 return -1
         else:
             if msg:
-                self.cli.publish(topic, msg)
+                ret = self.cli.publish(topic, json.dumps(msg))
+                ret.wait_for_publish(timeout=10)
                 return 0
             else:
                 return -1
+
     def subscribe(self,topic, on_msg=None):
         self.cli.subscribe(topic)
         self.msg_cb[topic] = on_msg
 
-    def _on_connect(self, client, userdata, flags, rc, prop):
-        if rc == 'Success':
-            print("Connected to MQTT Broker!")
-            self.stat = STAT_CONNECTED
-            for topic in self.topics:
-                self.cli.subscribe(topic)
-        else:
-            print("Failed to connect, return code %d\n", rc)
-            self.stat = STAT_DISCONNECTED
-
-    def _on_disconnect(self, client, userdata, rc, prop):
-        print("Disconnected from MQTT Broker!")
-        self.stat = STAT_DISCONNECTED
-        time.sleep(0.01)
-        # auto-reconnect
-        if not self.active_disconnect:
-            self.reconnect()
-
-    def _on_msg(self, client, userdata, msg):
-        print('received', msg.topic + " " + str(msg.payload))
-
-
-    def _task_net(self):
-        while self.stat != STAT_CONNECTED:
-            time.sleep(0.05)
-
-        self.cli.loop_forever()
-
     def start(self):
+        if self.stat != STAT_CONNECTED:
+            return
         self.thrd_conn = InterruptableThread(target=self._task_net)
         self.thrd_conn.start()
 
     def stop(self):
-        self.thrd_conn.stop()
-        self.cli.disconnect()
+        if self.stat == STAT_DISCONNECTED:
+            return
+        else:
+            self.stat = STAT_DISCONNECTED
+            self.cli.disconnect()
+            if self.thrd_conn:
+                self.thrd_conn.stop()
