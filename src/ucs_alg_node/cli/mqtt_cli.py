@@ -16,7 +16,7 @@ class MqttCli:
     a database or a file
     """
 
-    def __init__(self, host, port, username, passwd, topics, id=None):
+    def __init__(self, host, port, username, passwd, topics, id=None, on_connect=None, on_message=None, on_publish=None, on_subscribe=None, on_disconnect=None):
         self.host = host
         self.port = port
         self.username = username
@@ -28,19 +28,28 @@ class MqttCli:
         self.cli.id = self.cli_id
         self.cli.username_pw_set(self.username, self.passwd)
         self.topics = topics
+        self.on_connect = on_connect
+        self.on_message = on_message
+        self.on_publish = on_publish
+        self.on_subscribe = on_subscribe
+        self.on_disconnect = on_disconnect
 
         # register callbacks
         def on_connect(client, userdata, flags, rc, properties):
+            # print('connected', rc)
             self.stat = STAT_CONNECTED
-            for topic in topics:
-                self.cli.subscribe(topic)
-            #
-            # if rc == 0:
-            #     print('connected')
-            #
-            # else:
-            #     self.stat = STAT_DISCONNECTED
-            #     self.disconnect()
+
+            if rc == 'Success':
+                print('connected')
+                for topic in topics:
+                    self.cli.subscribe(topic)
+
+                if self.on_connect:
+                    self.on_connect()
+
+            else:
+                self.stat = STAT_DISCONNECTED
+                self.disconnect()
 
 
         def on_disconnect(client, userdata, rc):
@@ -56,7 +65,9 @@ class MqttCli:
             print('cli published')
 
         def on_message(client, userdata, message):
-            print('received: ', message.payload)
+            if self.on_message:
+                self.on_message(message.topic, message.payload)
+            # print('received: ', message.payload)
 
         self.cli.on_connect = on_connect
         self.cli.on_publish = on_publish
