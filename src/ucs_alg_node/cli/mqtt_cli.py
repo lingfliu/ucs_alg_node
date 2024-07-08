@@ -1,95 +1,105 @@
-import threading
 import time
 
 import paho.mqtt.client as mqtt
 
-import json
+from ..utils import InterruptableThread
 
 STAT_DISCONNECTED = 'disconnected'
 STAT_CONNECTING = 'connecting'
 STAT_CONNECTED = 'connected'
 
 class MqttCli:
-    """
-    MQTT Cli wrapper
-    N.B.: any MQ may bet lost, if the algorithm is in batch mode, preferably pass the result to
-    a database or a file
-    """
-
-    def __init__(self, host, port, username, passwd, topics, id=None, on_connect=None, on_message=None, on_publish=None, on_subscribe=None, on_disconnect=None):
+    def __init__(self, host, port, username, passwd, id, topics=None):
         self.host = host
         self.port = port
         self.username = username
         self.passwd = passwd
+        self.id = id
+        if topics:
+            self.topics = topics
+        else:
+            self.topics = []
+
+        self.cli = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        self.cli.username_pw_set(username, passwd)
+        self.cli.id = id
         self.stat = STAT_DISCONNECTED
 
-        self.cli_id = id # the id should be the node's id
-        self.cli = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-        self.cli.id = self.cli_id
-        self.cli.username_pw_set(self.username, self.passwd)
-        self.topics = topics
-        self.on_connect = on_connect
-        self.on_message = on_message
-        self.on_publish = on_publish
-        self.on_subscribe = on_subscribe
-        self.on_disconnect = on_disconnect
+        self.msg_cb = {}
 
-        # register callbacks
-        def on_connect(client, userdata, flags, rc, properties):
-            # print('connected', rc)
-            self.stat = STAT_CONNECTED
-
-            if rc == 'Success':
-                print('connected')
-                for topic in topics:
-                    self.cli.subscribe(topic)
-
-                if self.on_connect:
-                    self.on_connect()
-
-            else:
-                self.stat = STAT_DISCONNECTED
-                self.disconnect()
-
-
-        def on_disconnect(client, userdata, rc):
-            self.stat = STAT_DISCONNECTED
-            time.sleep(0.01)
-            # auto-reconnect
-            self.connect()
-
-        def on_subscribe(client, userdata, mid, granted_qos, properties):
-            print('subscribed')
-
-        def on_publish(client, userdata, mid, rc, properties):
-            print('cli published')
-
-        def on_message(client, userdata, message):
-            if self.on_message:
-                self.on_message(message.topic, message.payload)
-            # print('received: ', message.payload)
-
-        self.cli.on_connect = on_connect
-        self.cli.on_publish = on_publish
-        self.cli.on_subscribe = on_subscribe
-        self.cli.on_disconnect = on_disconnect
-        self.on_message = on_message
+        self.active_disconnect = False
+        self.thrd_conn = None
 
     def connect(self):
         self.stat = STAT_CONNECTING
-        # set the client to be alive indefinitely
-        self.cli.connect(host=self.host, port=self.port, keepalive=60, )
+        self.cli.connect(self.host, self.port, 60)
+        return 0
+
+    def reconnect(self):
+        self.connect()
 
     def disconnect(self):
+        self.active_disconnect = True
         self.stat = STAT_DISCONNECTED
         self.cli.disconnect()
+        return 0
 
-    def subscribe(self, topic):
-        self.cli.subscribe(topic)
-
-    def publish(self, topic=None, message=None):
-        """publish to default topics[0]"""
+    def publish(self, topic=None, msg=None):
+        """
+        :param topic:
+        :param msg:
+        :return: -1 if arg check failed
+        """
         if not topic:
-            self.cli.publish(self.topics[0], message)
+            if len(self.topics) > 0:
+                if msg:
+                    self.cli.publish(self.topics[0], msg)
+                    return 0
+                else:
+                    return -1
+            else:
+                return -1
         else:
-            self.cli.publish(topic, json.dumps(message))
+            if msg:
+                self.cli.publish(topic, msg)
+                return 0
+            else:
+                return -1
+    def subscribe(self,topic, on_msg=None):
+        self.cli.subscribe(topic)
+        self.msg_cb[topic] = on_msg
+
+    def _on_connect(self, client, userdata, flags, rc, prop):
+        if rc == 'Success':
+            print("Connected to MQTT Broker!")
+            self.stat = STAT_CONNECTED
+            for topic in self.topics:
+                self.cli.subscribe(topic)
+        else:
+            print("Failed to connect, return code %d\n", rc)
+            self.stat = STAT_DISCONNECTED
+
+    def _on_disconnect(self, client, userdata, rc, prop):
+        print("Disconnected from MQTT Broker!")
+        self.stat = STAT_DISCONNECTED
+        time.sleep(0.01)
+        # auto-reconnect
+        if not self.active_disconnect:
+            self.reconnect()
+
+    def _on_msg(self, client, userdata, msg):
+        print('received', msg.topic + " " + str(msg.payload))
+
+    def _task_net(self):
+        while self.stat != STAT_CONNECTED:
+            time.sleep(0.05)
+
+        self.cli.loop_forever()
+
+    def start(self):
+        self.thrd_conn = InterruptableThread(target=self._task_net)
+        self.thrd_conn.start()
+
+    def stop(self):
+        self.thrd_conn.stop()
+        self.cli.disconnect()

@@ -1,67 +1,40 @@
-import threading
+import json
 import time
 
 from src.ucs_alg_node.cli import MqttCli, RedisCli, MqCli, MinioCli
-from src.ucs_alg_node.utils import InterruptableThread, ThreadEx
 
-# host = '62.234.16.239'
-host = 'localhost'
-port = 1883
+
+host = '62.234.16.239'
 
 def test_mqtt_cli():
-    cli = MqttCli(
+    default_topic = 'ucs/alg'
+    mqtt_cli = MqttCli(
         host = host,
-        port = port,
-        username = 'admin',
-        passwd = 'vivi1234',
-        topics = ['ucs/alg/res'],
-        id = 'node112'
+        port = 1883,
+        username = 'admin',#默认账号
+        passwd = 'public',#默认密码
+        topics = [default_topic],
+        id='node112'
     )
 
+    mqtt_cli.connect()
 
-    # while cli.stat != 'connected':
-    #     time.sleep(0.1)
-    #     print('connecting...')
-
-    msg_list = [i for i in range(10)]
-    def input():
-        if len(msg_list) > 0:
-            return msg_list.pop(0)
-        else:
-            return None
-
-
-    def task(i):
-        return {
-            'result': 'ok',
+    time.sleep(5)
+    print('runs here')
+    for i in range(10):
+        msg = {
+            'status': 'ok',
             'msg': {
-                'ts': time.time_ns(),
-                'value': i
+                'value': [0,1,2,3],
+                'descp': 'test result',
+                'task_ts': time.time_ns()/1000,
             }
         }
+        mqtt_cli.publish('ucs/alg', json.dumps(msg))
 
-    def post_task(stat, ret):
-        cli.publish('ucs/alg/res', ret)
+    while True:
+        time.sleep(1)
 
-
-
-    def _task_publish():
-        while cli.stat != 'connected':
-            time.sleep(0.1)
-            print('connecting...')
-        thrd = ThreadEx(task=task, args=(), input=input, post_task=post_task, mode='return', timeout=10)
-        thrd.start()
-        thrd.join()
-
-    thrdG = threading.Thread(target=_task_publish)
-    thrdG.start()
-
-    cli.connect()
-    cli.cli.loop_forever()
-
-    # while True:
-    #     time.sleep(1)
-    # print('finished, quit program')
 
 
 
