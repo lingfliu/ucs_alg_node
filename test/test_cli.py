@@ -4,7 +4,8 @@ import time
 import tornado.ioloop
 def test_mqtt_cli():
     mqtt_cli = MqttCli(
-        host='localhost',
+        # host='localhost',
+        host='62.234.16.239',
         port=1883,
         username='admin',  # 默认账号
         passwd='public',  # 默认密码
@@ -41,7 +42,8 @@ def test_mqtt_cli():
 
 def test_redis_cli():
     redis_cli = RedisCli(
-        host='localhost',
+        # host='localhost',
+        host='62.234.16.239',
         port=6379,
         db=0,  # 默认数据库索引
         username=None,  # 如果没有用户名认证，则留空
@@ -58,39 +60,44 @@ def test_mq_cli():
         print('received: ', msg)
 
     mq_cli = MqCli(
-        host='localhost',
+        # host='localhost',
+        host='62.234.16.239',
         port=4150,
-        topic= 'test_topic',
-        channel= 'test',
+        topic='test_topic1',
+        channel='test',
         username=None,  # 如果没有用户名认证，则留空
         passwd=None,
         on_message=on_message
     )
     # 订阅特殊话题
-    mq_cli.subscribe('test_topic4')
     print("订阅特殊话题")
-    mq_cli.publish({
-        'status': 'ok',
-        'err': None
-    })
-    print("发布信息")
-    # 连接到 NSQ 并订阅主题
-    # mq_cli.connect()
+    mq_cli.subscribe('test_topic6')
 
-    # 定期发布消息
-    # def pub_message():
-    #     current_time = time.strftime('%H:%M:%S')
-    #     mq_cli.publish(current_time)
-    # # 设置定时器，每隔 1000 毫秒（1 秒）发布一次消息
-    # tornado.ioloop.PeriodicCallback(pub_message, 1000).start()
-    # mq_cli.connect()
+    # mq_cli.publish({
+    #     'status': 'ok',
+    #     'err': None
+    # })
+    def pub_message():
+        # current_time = time.strftime('%H:%M:%S').encode('utf-8')
+        current_time = {
+            'status': 'ok',
+            'err': None
+        }
+        mq_cli.publish(current_time)
+    # 设置定时器，每隔 1000 毫秒（1 秒）发布一次消息
+    tornado.ioloop.PeriodicCallback(pub_message, 1000).start()
+
+    # 连接到 NSQ 并订阅主题
+    mq_cli.connect()
+
 
 def test_minio_cli():
     """test for minio upload, download, query, count"""
     minio_cli = MinioCli(
-        host='localhost',
+        # host='localhost',
+        host='62.234.16.239',
         port='9090',
-        bucket='pubilc',  # 这里好像只能起bucket名字，不能用文件夹
+        bucket='public',  # 这里好像只能起bucket名字，不能用文件夹
         username='admin',
         passwd='admin1234'
     )
@@ -103,13 +110,13 @@ def test_minio_cli():
         pass
 
     # The file to upload, change this path if needed 本地文件上传
-    # source_file = r"D:\py program\ucs_alg_node\requirements.txt"
-    #
-    # destination_file = "requirements05.txt"
+    # source_file = r"D:\py_program\ucs_alg_node\requirements.txt"
+    # destination_file = "requirements.txt"
     # minio_cli.upload(destination_file, source_file)
+
     # The file to download, change this path if needed 文件下载
-    source_file = r"D:\py program\ucs_alg_node\requirements05.txt"
-    destination_file = "requirements01.txt"
+    source_file = r"D:\py_program\ucs_alg_node\requirements01.txt"
+    destination_file = "requirements.txt"
     minio_cli.download(destination_file, source_file)
 
 

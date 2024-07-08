@@ -1,6 +1,7 @@
 import nsq
 import time
 import tornado.ioloop
+import json
 class MqCli:
     """MQ cli, by default, using NSQ
     """
@@ -24,9 +25,9 @@ class MqCli:
         self.nsq.run()
 
     def publish(self, msg):
+        msg = json.dumps(msg).encode('utf-8')
         # 发布消息
         self.tx.pub(self.topic, msg, print(msg))
-
 
     def message_handle(self, msg):
         if self.on_message:
@@ -34,7 +35,13 @@ class MqCli:
         print(msg)
         print(msg.body)
 
-    def subscribe(self, topic):
-        self.rx = nsq.Reader(message_handler=self.message_handle,
-                             nsqd_tcp_addresses=[self.host + ':' + str(self.port)],
-                             topic=topic, channel=self.channel, lookupd_poll_interval=15)
+    def subscribe(self, topic=None):
+        if topic is None:
+            topic = self.topic
+        self.rx = nsq.Reader(
+            message_handler=self.message_handle,
+            nsqd_tcp_addresses=[self.host + ':' + str(self.port)],
+            topic=topic,
+            channel=self.channel,
+            lookupd_poll_interval=15
+        )
