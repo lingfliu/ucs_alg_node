@@ -9,13 +9,14 @@ class MinioCli:
         self.passwd = passwd
 
         try:
-            self.cli = Minio(host+':'+port, access_key=username, secret_key=passwd, secure=False)
+            self.cli = Minio(host+':'+str(port), access_key=username, secret_key=passwd, secure=False)
             found = self.cli.bucket_exists(bucket)
             if not found:
                 self.cli.make_bucket(bucket)
-                print("Created bucket", bucket)
-            else:
-                print("Bucket", bucket, "already exists")
+                # print("Created bucket", bucket)
+            # else:
+            #     print("Bucket", bucket, "already exists")
+
         except S3Error as e:
             print(e)
             self.cli = None
@@ -35,6 +36,20 @@ class MinioCli:
             return -1
         try:
             self.cli.fget_object(self.bucket, obj_name, obj_path)
+            return 0
+        except S3Error as e:
+            print(e)
+            return -1
+
+    def bucket_exist(self, bucket):
+        if self.cli.bucket_exists(bucket):
+            return True
+        else:
+            return False
+
+    def create_bucket(self, bucket):
+        try:
+            self.cli.make_bucket(bucket)
             return 0
         except S3Error as e:
             print(e)
