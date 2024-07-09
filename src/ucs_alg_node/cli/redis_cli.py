@@ -2,6 +2,7 @@ import time
 import redis
 from threading import Thread
 
+from ..utils import InterruptableThread
 
 STAT_DISCONNECTED = 'disconnected'
 STAT_CONNECTED = 'connected'
@@ -10,7 +11,7 @@ STAT_CONNECTING = 'connecting'
 
 class RedisCli:
     """redis client for result submission"""
-    def __init__(self, host, port, db, username, passwd):
+    def __init__(self, host, port, db, username=None, passwd=None):
         self.host = host
         self.port = port
         self.db = db
@@ -20,13 +21,18 @@ class RedisCli:
         self.r = None
 
         self.stat = STAT_DISCONNECTED
+        self.thrd_connect = None
 
     def connect(self):
-        Thread(target=self._connect).start()
+        self.thrd_connect = InterruptableThread(target=self._connect).start()
+
+    def disconnect(self):
+        self.stat = STAT_DISCONNECTED
+        self.r.disconnect()
 
     def _connect(self):
         self.stat = STAT_CONNECTING
-        r = redis.Redis(host=self.host, port=self.port, db=self.db, password=self.passwd, username=self.username, socket_keepalive=True)
+        r = redis.Redis(host=self.host, port=self.port, db=0, password=self.passwd, socket_keepalive=True)
         if r.ping():
             self.stat = STAT_CONNECTED
             self.r = r
@@ -44,7 +50,7 @@ class RedisCli:
         else:
             return None
 
-    def set(self, key, value):
+    def put(self, key, value):
         if self.stat == STAT_CONNECTED:
             return self.r.set(key, value)
         else:
@@ -53,6 +59,12 @@ class RedisCli:
     def delete(self, key):
         if self.stat == STAT_CONNECTED:
             return self.r.delete(key)
+        else:
+            return -1
+
+    def count(self):
+        if self.stat == STAT_CONNECTED:
+            return self.r.dbsize()
         else:
             return -1
 
