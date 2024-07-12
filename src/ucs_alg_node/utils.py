@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import threading
 import time
@@ -11,6 +12,9 @@ def current_time_milli():
 
 
 class StoppableThread:
+    """
+    Deprecated
+    """
     def __init__(self, task, task_args=None, mode='return'):
         self.task = task
         self.task_args = task_args
@@ -165,3 +169,24 @@ class ThreadEx(Thread):
         self.is_running = False
         self.skip()
         self.stat = 'stop'
+
+
+class CoroutineThread(Thread):
+    def __init__(self, target, args=(), timeout=None):
+        Thread.__init__(self, target=target, args=args)
+
+        new_loop = asyncio.new_event_loop()
+        self._target = target
+        self._args = args
+        self.timeout = timeout
+        self.stat = 'idle'
+        self.ret = None
+
+        self.loop = asyncio.get_event_loop()
+
+    def run(self):
+        task = asyncio.ensure_future(self._target(*self._args))
+        self.loop.run_until_complete(task)
+
+    def skip(self):
+        self.stat = 'skip'

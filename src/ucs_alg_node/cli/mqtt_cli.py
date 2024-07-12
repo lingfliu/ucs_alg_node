@@ -87,7 +87,7 @@ class MqttCli:
             if len(self.topics) > 0:
                 if msg:
                     ret = self.cli.publish(self.topics[0], json.dumps(msg))
-                    ret.wait_for_publish(timeout=10)
+                    ret.wait_for_publish(timeout=1)
                     return 0
                 else:
                     return -1

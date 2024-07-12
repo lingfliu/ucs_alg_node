@@ -2,11 +2,12 @@
 #
 # from src.ucs_alg_node.cli import NsqCli
 #
-# host = '62.234.16.239'
+host = '62.234.16.239'
+# host = 'localhost'
 # host = '192.168.0.103'
+import asyncio
 import time
 
-host = 'localhost'
 
 import tornado.ioloop
 
@@ -31,8 +32,9 @@ import tornado.ioloop
 import nsq
 from src.ucs_alg_node.utils import InterruptableThread
 
+# loop = asyncio.new_event_loop()
 def handle_msg(msg):
-    # print('received: %s at '%msg.body + str(time.time_ns()))
+    print('received: %s at '%msg.body + str(time.time_ns()))
     tic = int(msg.body.split(b':')[1])
     toc = time.time_ns()
     print('latency: %d ns'%(toc - tic))
@@ -45,12 +47,19 @@ def _on_pub_finished(conn, data):
     # print(data)
     pass
 
-def _pub_task():
-    for _ in range(1):
-        w.pub('test', bytes('ts:%d'%time.time_ns(), 'utf-8'), _on_pub_finished)
+cnt =0
 
-tornado.ioloop.PeriodicCallback(_pub_task, 1).start()
+def _pub_task():
+
+    for _ in range(1):
+        w.pub('test', bytes('ts:%d'%time.time_ns()+':%d'%cnt, 'ascii'), _on_pub_finished)
+        #cnt += 1
+        break
+
+# tornado.ioloop.PeriodicCallback(_pub_task, 1).start()
+# InterruptableThread(target=_pub_task).start()
 
 nsq.run()
+_pub_task()
 while True:
     time.sleep(1)

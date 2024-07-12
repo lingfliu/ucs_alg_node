@@ -3,13 +3,16 @@ import time
 from src.ucs_alg_node.cli import MqttCli
 from src.ucs_alg_node.utils import InterruptableThread
 
-# host = '62.234.16.239'
-host = 'localhost'
+host = '62.234.16.239'
+# host = 'localhost'
 port = 1883
-default_topic = 'ucs/alg/res'
+default_topic = 'ucs/alg/result'
 
 def on_message(topic, msg):
-    print('received: ', topic, msg)
+    tic = int(msg['msg']['ts'])
+    toc = time.time_ns()
+    print('received: ', topic, msg, 'at %d'%time.time_ns(), 'latency: %d ns'%(toc - tic))
+
 
 cli = MqttCli(host, port, 'admin', 'vivi1234', 'node112', [default_topic, ])
 cli.connect()
@@ -29,8 +32,8 @@ def _task_publish():
         i += 1
         time.sleep(0.01)
 
-thrd_pub = InterruptableThread(target=_task_publish)
-thrd_pub.start()
+# thrd_pub = InterruptableThread(target=_task_publish)
+# thrd_pub.start()
 
 def _task_subscribe():
     while cli.stat != 'connected':
@@ -44,7 +47,7 @@ while True:
     time.sleep(10)
 
     print('disconnecting')
-    thrd_pub.skip()
-    thrd_sub.skip()
-    cli.disconnect()
-    break
+    # thrd_pub.skip()
+    # thrd_sub.skip()
+    # cli.disconnect()
+    # break
