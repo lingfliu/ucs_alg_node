@@ -1,6 +1,6 @@
 import threading
 
-from src.ucs_alg_node.utils import StoppableThread, InterruptableThread
+from .utils import StoppableThread, InterruptableThread
 
 STAT_INIT = 'init' # alg is initiating (model loading, etc.)
 STAT_IDLE = 'idle' # alg is idle
