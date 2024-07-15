@@ -103,10 +103,10 @@ class AlgNode:
     def submit_task(self, alg_task):
         if self.mode == 'stream':
             # reload sources
-            self.task = alg_task
-            self.alg.sources = self.task.sources
-            self.reload()
-            return 0
+            # self.task = alg_task
+            # self.alg.sources = self.task.sources
+            # self.reload()
+            return -1 # task update not supported in stream mode
         elif self.mode == 'batch':
             try:
                 # throw exception if queue is full
@@ -114,9 +114,9 @@ class AlgNode:
                 return 0
             except:
                 print("task queue full")
-                return -1
+                return -2
         else:
-            return -1
+            return -3 # unknown mode
 
     def set_model(self, model):
         # alg will handle model reloading
