@@ -1,3 +1,5 @@
+import time
+
 from flask import Flask, request, jsonify
 import os
 import psutil
@@ -27,7 +29,7 @@ class AlgNodeWeb:
         self.port = port
 
         # 接口声明
-        self.api_root = '/api/v1/alg_node' # v1为版本，alg为根路径
+        self.api_root = '/api/v1/algnode' # v1为版本，alg为根路径
 
         self.app.add_url_rule(self.api_root+'/about', 'node_about', self.about, methods=['GET']) # 获取系统信息
         self.app.add_url_rule(self.api_root+'/stat', 'node_stat', self.get_node_stat, methods=['GET']) # 获取系统负载
@@ -43,10 +45,9 @@ class AlgNodeWeb:
         self.app.add_url_rule(self.api_root + '/task/skip', 'task_skip', self.skip, methods=['POST']) # 跳过当前任务
         self.app.add_url_rule(self.api_root + '/task/submit', 'task_submit', self.submit_task, methods=['POST']) # 提交任务
 
-        self.app.add_url_rule(self.api_root + '/cfg/sources', 'alg_cfg_sources', self.config_sources, methods=['POST']) #设置数据源
-        self.app.add_url_rule(self.api_root + '/cfg/model', 'alg_cfg_model', self.config_model, methods=['POST']) # 设置模型
-        self.app.add_url_rule(self.api_root + '/cfg/source', 'out_cfg', self.config_sources, methods=['POST']) # 数据源配置
-        # self.app.add_url_rule(self.api_root + '/cfg/out', 'out_cfg', self.config_out, methods=['POST']) # TODO: 配置输出
+        self.app.add_url_rule(self.api_root + '/config/sources', 'alg_cfg_sources', self.config_sources, methods=['POST']) #设置数据源
+        self.app.add_url_rule(self.api_root + '/config/model', 'alg_cfg_model', self.config_model, methods=['POST']) # 设置模型
+        # self.app.add_url_rule(self.api_root + '/config/dest', 'dest_cfg', self.config_dest, methods=['POST']) # TODO: 配置输出
 
     def run(self):
         self.app.run(host='localhost', port=self.port)
@@ -112,9 +113,9 @@ class AlgNodeWeb:
 
     def upload_model(self):
         """upload multipart file"""
-        fobj = request.files['file']
-        fname = request.form['filename']
-        fpath = os.path.join(self.node.model_dir, fname)
+        fobj = request.files.get('file')
+        fname = request.form['fname']
+        fpath = os.path.join(self.node.model_dir, fobj.filename)
         if os.path.exists(fpath):
             return {
                 'code': 'err',
@@ -125,7 +126,7 @@ class AlgNodeWeb:
             return {
                 'code': 'ok',
                 'msg': {
-                    'model_name': fname,
+                    'model': fobj.filename,
                 }
             }
 
@@ -144,14 +145,18 @@ class AlgNodeWeb:
         #         'msg': 'upload failed'
         #     }
 
-    def delete_model(self, model_name):
+    def delete_model(self):
+        model_name = request.get_json()['model']
         model_path = os.path.join(self.node.model_dir, model_name)
         if os.path.exists(model_path):
             os.remove(model_path)
-            return jsonify({
+            return {
                 'code': 'ok',
-                'msg': 'deleted'
-            })
+                'msg':
+                    {
+                        'model': model_name
+                    }
+            }
         else:
             return jsonify({
                 'code': 'err',
@@ -179,8 +184,9 @@ class AlgNodeWeb:
             'msg':models
         }
 
-    def config_model(self, model_name):
+    def config_model(self):
         """config model"""
+        model_name = request.get_json()['model']
         has_model = False
         model_list = self._get_model_list()
         for model in model_list:
@@ -238,9 +244,10 @@ class AlgNodeWeb:
             id=request.json['id'],
             ts=request.json['ts'],
             sources=request.json['sources'],
-            meta=request.json['meta']
+            meta=request.json['meta'] if 'meta' in request.json else None
         )
-        ret = self.node.submit(task)
+        print('new task sbumitted at', time.time_ns(), 'task queue size', self.node.task_queue.qsize())
+        ret = self.node.submit_task(task)
 
         if ret >= 0:
             return {

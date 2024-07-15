@@ -1,3 +1,4 @@
+import os
 import time
 
 from .utils import current_time_milli
@@ -35,7 +36,11 @@ class AlgNode:
             self.id = cfg['id'] if 'id' in cfg else 'default'
             self.name = cfg['name'] if 'name' in cfg else 'default'
             self.mode = cfg['mode'] if 'mode' in cfg else 'batch'
-            self.model_dir = cfg['model_dir'] if 'model_dir' in cfg else './model'
+            self.model_dir = cfg['model_dir'] if 'model_dir' in cfg else os.path.join(os.getcwd(), 'models')
+
+            if not os.path.exists(self.model_dir):
+                os.makedirs(self.model_dir)
+
 
             self.alg_timeout = cfg['alg_timeout'] if 'alg_timeout' in cfg else None
             # alg config
@@ -111,6 +116,7 @@ class AlgNode:
             try:
                 # throw exception if queue is full
                 self.task_queue.put(alg_task, block=False)
+                print('task in queue, queue size:', self.task_queue.qsize())
                 return 0
             except:
                 print("task queue full")
@@ -137,7 +143,7 @@ class AlgNode:
         alg_task.stats = 'running'
         ret = self.alg.infer_batch(alg_task)
         # wrap result with task infos
-        result = self.wrap_result(alg_task, alg_task.tic, ret)
+        result = self.wrap_result(alg_task, ret)
         return result
 
     def wrap_result(self, task, ret):

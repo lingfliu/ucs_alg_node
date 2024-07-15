@@ -1,4 +1,5 @@
 import asyncio
+import os
 import datetime
 import threading
 import time
@@ -7,8 +8,11 @@ import ctypes
 
 
 def current_time_milli():
-    dt = datetime.datetime.now()
-    return dt.microsecond / 1000
+    ms = time.time_ns()/1000000
+    return ms
+
+def get_cwd():
+    return os.getcwd()
 
 
 class StoppableThread:
@@ -151,14 +155,13 @@ class ThreadEx(Thread):
                 self.exc_task.start()
                 self.exc_task.join(timeout=self.timeout)
                 self.stat = self.exc_task.stat
-                self.post_task(self.stat, self.exc_task.ret)
+                self.post_task(self.exc_task.ret)
 
         elif self.mode == "yield":
             while self.is_running:
                 self.exc_task = InterruptableThread(self._yield_task, (self._target, self._args), mode='yield')
                 self.exc_task.start()
                 self.exc_task.join(timeout=self.timeout) # will not timeout until stop is called
-
 
     def skip(self):
         if self.exc_task:

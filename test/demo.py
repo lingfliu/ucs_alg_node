@@ -1,3 +1,5 @@
+import os
+
 from src.ucs_alg_node import AlgNode, Alg, AlgResult, AlgSubmitter, AlgNodeWeb, AlgTask, utils
 import time
 
@@ -22,15 +24,21 @@ class MyAlg(Alg):
             # print('result:', str(result))
             yield result
 
+    def infer_batch(self, task):
+        time.sleep(10)
+        ts = time.time_ns()
+        result = AlgResult(task.id, time.time_ns(), [1, ts], "stub result")
+        return result
+
 
 
 def main():
     cfg = {
         'id': node_id,
         'name': 'alg_name',
-        'mode': 'stream',
+        'mode': 'batch',
         'max_task': 10,
-        'model_dir': './model',  # could be file path or url or model name
+        'model_dir': os.path.join(utils.get_cwd(), 'models'),  # could be file path or url or model name
         'alg_id': 'alg_id123', # only effective in batch mode
         'web_port':9996
     }
@@ -79,14 +87,14 @@ def main():
     }
 
     node = AlgNode(max_task=10, cfg=node_cfg, task=task)
-    # node_web_api = AlgNodeWeb(cfg['web_port'], node)
+    node_web_api = AlgNodeWeb(cfg['web_port'], node)
 
     node.start()
-    # node_web_api.run()
+    node_web_api.run()
 
     print('start node')
     while True:
-        time.sleep(100)
+        time.sleep(5)
         # node.stop()
         # print('stop node, exit')
         # break
