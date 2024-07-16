@@ -58,6 +58,7 @@ def main():
     out_cfg = {
 
         'dest': '62.234.16.239:1883',
+        #TODO: remove the addr
         'mode': 'mqtt',
         'username': 'admin',
         'passwd': 'admin1234',
