@@ -44,6 +44,7 @@ class AlgNodeWeb:
         self.app.add_url_rule(self.api_root + '/task/info', 'task_info', self.get_task_info, methods=['GET']) # 获取当前任务信息
         self.app.add_url_rule(self.api_root + '/task/skip', 'task_skip', self.skip, methods=['POST']) # 跳过当前任务
         self.app.add_url_rule(self.api_root + '/task/submit', 'task_submit', self.submit_task, methods=['POST']) # 提交任务
+        self.app.add_url_rule(self.api_root + '/task/all', 'task_submit', self.submit_task, methods=['GET']) # 提交任务
 
         self.app.add_url_rule(self.api_root + '/config/sources', 'alg_cfg_sources', self.config_sources, methods=['POST']) #设置数据源
         self.app.add_url_rule(self.api_root + '/config/model', 'alg_cfg_model', self.config_model, methods=['POST']) # 设置模型
@@ -264,3 +265,11 @@ class AlgNodeWeb:
                 'code': 'err',
                 'msg': 'submit task failed, code:%d' % ret
             }
+
+    def get_task_list(self):
+        """peek all tasks in queue
+
+        """
+        # queue to list
+        for q in self.node.task_queue.queue:
+            print(q)

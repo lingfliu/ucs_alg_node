@@ -18,15 +18,10 @@ python -m build
 # Principles & practice
 
 ## 1. Alg
-An Alg is the wrapper of a specific algorithm. It has 2 mode:
+An Alg is the wrapper of a specific algorithm. There are 2 working mode:
 
 ### [1] Stream mode
-The stream mode is used to process data in real-time. The Alg will be initialized once and keep running until the service is stopped. The Alg will process data in real-time and return the result in real-time.
-
-The following streams are supported:
-1. MQ subscription
-2. TCP connection
-3. media streams, e.g. RTSP, RTMP, HLV
+The stream mode is used to process real-time data stream. The Alg will be initialized once and keep running until the service is stopped. The Alg will process data in real-time and return the result in real-time.
 
 Input sources should contain at least one streams, and may contain some meta data, e.g. global file, hyperparameters, etc.
 Input sources should be in the following format:
@@ -34,9 +29,8 @@ Input sources should be in the following format:
 {
   "sources":
   [
-    "tcp",
-    "rtsp",
-    "http"
+    "rtsp://url:port",
+    "tcp://"
   ],
   "meta": {
     "meta1": "value1",
