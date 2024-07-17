@@ -146,16 +146,18 @@ class ThreadEx(Thread):
                     break
 
                 x = self.input()
-                if x is None:
+                if not x:
                     # all tasks done, quit the loop
-                    self.is_running = False
-                    break
+                    # self.is_running = False
+                    # break
+                    time.sleep(0.1)
+                else:
 
-                self.exc_task = InterruptableThread(self._input_bind_task, (self._target, self._args, x))
-                self.exc_task.start()
-                self.exc_task.join(timeout=self.timeout)
-                self.stat = self.exc_task.stat
-                self.post_task(self.exc_task.ret)
+                    self.exc_task = InterruptableThread(self._input_bind_task, (self._target, self._args, x))
+                    self.exc_task.start()
+                    self.exc_task.join(timeout=self.timeout)
+                    self.stat = self.exc_task.stat
+                    self.post_task(self.exc_task.ret)
 
         elif self.mode == "yield":
             while self.is_running:

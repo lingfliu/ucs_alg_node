@@ -1,4 +1,5 @@
 import os
+import threading
 import time
 
 from .utils import current_time_milli
@@ -64,18 +65,18 @@ class AlgNode:
 
 
         if self.mode == 'batch':
-            self.task_queue = Queue(max_task)
+            self.task_list = []
+            self.max_task = max_task
+            self.task_list_lck = threading.RLock()
 
     def start(self):
         if not self.alg:
             return -1
 
         def input():
-            try:
-                alg_task = self.task_queue.get(block=True)
-                return alg_task
-            except:
-                return None
+            alg_task = self.pop_task()
+            return alg_task
+
 
         self.submitter.start()
         if self.mode == 'stream':
@@ -83,7 +84,6 @@ class AlgNode:
             self.thrd_stream.start()
             return 0
         elif self.mode == 'batch':
-            self.thrd_queue = True
             self.thrd_batch = ThreadEx(task=self._task_batch, args=(), input=input, mode='return', timeout=self.alg_timeout, post_task=self.publish_result)
             self.thrd_batch.start()
             return 0
@@ -113,16 +113,45 @@ class AlgNode:
             # self.reload()
             return -1 # task update not supported in stream mode
         elif self.mode == 'batch':
-            try:
-                # throw exception if queue is full
-                self.task_queue.put(alg_task, block=False)
-                print('task in queue, queue size:', self.task_queue.qsize())
-                return 0
-            except:
+            ret = self.push_task(alg_task)
+            if ret < 0:
                 print("task queue full")
                 return -2
+            else:
+                print('task in queue, queue size:', len(self.task_list))
+                return 0
         else:
             return -3 # unknown mode
+
+    def push_task(self, alg_task):
+        self.task_list_lck.acquire()
+        if len(self.task_list) >= self.max_task:
+            self.task_list_lck.release()
+            return -1
+        else:
+            alg_task.stats = 'pending'
+            self.task_list.append(alg_task)
+            self.task_list_lck.release()
+            return 1
+    def insert_task(self, alg_task):
+        self.task_list_lck.acquire()
+        if len(self.task_list) >= self.max_task:
+            self.task_list_lck.release()
+            return -1
+        else:
+            self.task_list = [alg_task] + self.task_list
+            self.task_list_lck.release()
+            return 1
+
+    def pop_task(self):
+        self.task_list_lck.acquire()
+        if len(self.task_list) > 0:
+            task = self.task_list.pop(0)
+            self.task_list_lck.release()
+            return task
+        else:
+            self.task_list_lck.release()
+            return None
 
     def set_model(self, model):
         # alg will handle model reloading

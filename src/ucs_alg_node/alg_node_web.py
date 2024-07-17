@@ -1,3 +1,4 @@
+import json
 import time
 
 from flask import Flask, request, jsonify
@@ -44,7 +45,7 @@ class AlgNodeWeb:
         self.app.add_url_rule(self.api_root + '/task/info', 'task_info', self.get_task_info, methods=['GET']) # 获取当前任务信息
         self.app.add_url_rule(self.api_root + '/task/skip', 'task_skip', self.skip, methods=['POST']) # 跳过当前任务
         self.app.add_url_rule(self.api_root + '/task/submit', 'task_submit', self.submit_task, methods=['POST']) # 提交任务
-        self.app.add_url_rule(self.api_root + '/task/all', 'task_submit', self.submit_task, methods=['GET']) # 提交任务
+        self.app.add_url_rule(self.api_root + '/task/all', 'task_list', self.get_task_list, methods=['GET']) # 提交任务
 
         self.app.add_url_rule(self.api_root + '/config/sources', 'alg_cfg_sources', self.config_sources, methods=['POST']) #设置数据源
         self.app.add_url_rule(self.api_root + '/config/model', 'alg_cfg_model', self.config_model, methods=['POST']) # 设置模型
@@ -106,11 +107,7 @@ class AlgNodeWeb:
     def skip(self):
         """break current alg task and turn  the next task"""
         self.node.skip()
-        return {
-            'code': 'ok',
-            'msg': self.node.task
-        }
-
+        return self.get_task_list()
 
     def upload_model(self):
         """upload multipart file"""
@@ -247,7 +244,7 @@ class AlgNodeWeb:
             sources=request.json['sources'],
             meta=request.json['meta'] if 'meta' in request.json else None
         )
-        print('new task sbumitted at', time.time_ns(), 'task queue size', self.node.task_queue.qsize())
+        print('new task sbumitted at', time.time_ns(), 'task queue size', len(self.node.task_list))
         ret = self.node.submit_task(task)
 
         if ret >= 0:
@@ -267,9 +264,15 @@ class AlgNodeWeb:
             }
 
     def get_task_list(self):
-        """peek all tasks in queue
-
-        """
-        # queue to list
-        for q in self.node.task_queue.queue:
-            print(q)
+        tasks = []
+        for t in self.node.task_list:
+            tasks.append({
+                'id': t.id,
+                'ts': t.ts,
+                'sources': t.sources,
+                'meta': t.meta
+            })
+        return {
+            'code': 'ok',
+            'msg':tasks
+        }
