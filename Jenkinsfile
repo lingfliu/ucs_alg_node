@@ -8,10 +8,10 @@ pipeline {
 
     environment {
 	    // GIT地址
-        GIT_URL = 'https://e.coding.net/lingfliu/ucs/ucs_alg_node_service.git'
+        GIT_URL = 'git@e.coding.net:lingfliu/ucs/ucs_alg_node.git'
 	    // 版本信息，用当前时间
         VERSION = VersionNumber versionPrefix: 'prod.', versionNumberString: '${BUILD_DATE_FORMATTED, "yyyyMMdd"}.${BUILDS_TODAY}'
-        GIT_URL_WITH_AUTH = 'https://hjk:1baffd762ce9869ca4a1d62c85259bdda4c57d7c@e.coding.net/lingfliu/ucs/ucs_alg_node_service.git'
+        GIT_URL_WITH_AUTH = 'git@e.coding.net:lingfliu/ucs/ucs_alg_node.git'
     }
     
     parameters {
