@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  app:
+    image: lingfliu-docker.pkg.coding.net/ucs/docker/ucs_alg_node_wrapdemo:${VERSION}
+    container_name: ucs_alg_node_wrapdemo
+    restart: always
+    ports:
+      - "8082:8080"  # 将容器的端口映射到主机端口
