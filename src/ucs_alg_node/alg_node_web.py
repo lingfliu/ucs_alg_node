@@ -6,21 +6,7 @@ import os
 import psutil
 
 from . import AlgSubmitter
-from .alg_node import AlgNode
-from .alg import Alg
 from .alg_task import AlgTask
-from .alg_result import AlgResult
-
-from .cli import HttpCli, MinioCli
-
-#
-# minio_host = '62.234.16.239'
-# minio_port = 9090
-# minio_bucket = 'ucs-alg'
-# minio_username = 'admin'
-# minio_passwd = 'admin1234'
-#
-# minioCli = MinioCli(minio_host, minio_port, minio_bucket, minio_username, minio_passwd)
 
 class AlgNodeWeb:
     def __init__(self, port=9001, alg_node=None):
@@ -57,7 +43,7 @@ class AlgNodeWeb:
     def about(self):
         return {
                 'code':'ok',
-                'msg': 'UCS Alg node 0.1.3'
+                'msg': 'UCS Alg node 0.1.6' # TODO: read version from pyproject.toml
             }
 
     def get_node_stat(self):
@@ -106,8 +92,19 @@ class AlgNodeWeb:
 
     def skip(self):
         """break current alg task and turn  the next task"""
-        self.node.skip()
-        return self.get_task_list()
+        if self.node.mode == 'stream':
+            return {
+                'code': 'err',
+                'msg': 'skip not supported in stream mode'
+            }
+        elif self.node.mode == 'batch':
+            self.node.skip()
+            return self.get_task_list()
+        else:
+            return {
+                'code': 'err',
+                'msg': 'unknown mode'
+            }
 
     def upload_model(self):
         """upload multipart file"""
@@ -128,21 +125,6 @@ class AlgNodeWeb:
                 }
             }
 
-        # TODO: download model from minio
-        # ret = minioCli.upload(fname, fobj)
-        # if ret > 0:
-        #     return {
-        #         'code': 'ok',
-        #         'msg': {
-        #             'fname': fname,
-        #         }
-        #     }
-        # else:
-        #     return {
-        #         'code': 'err',
-        #         'msg': 'upload failed'
-        #     }
-
     def delete_model(self):
         model_name = request.get_json()['model']
         model_path = os.path.join(self.node.model_dir, model_name)
@@ -161,28 +143,6 @@ class AlgNodeWeb:
                 'msg': 'model not found'
             }
 
-
-    def skip_task(self):
-        self.node.skip()
-        return {
-            'code': 'ok',
-            'msg': 'task skipped'
-        }
-
-    def reload(self):
-        """reload algorithm"""
-        if self.node:
-            self.node.reload()
-            return {
-                'code': 'ok',
-                'msg': 'reloading'
-            }
-        else:
-            return {
-                'code': 'err',
-                'msg': 'no alg'
-            }
-
     def _get_model_list(self):
         model_dir = self.node.model_dir
         models = []
@@ -194,6 +154,8 @@ class AlgNodeWeb:
                         'name': f,
                         'path': os.path.join(root, f)
                     })
+
+        return models
 
     def get_model_list(self):
         models = self._get_model_list()
@@ -228,13 +190,24 @@ class AlgNodeWeb:
 
     def config_sources(self, sources):
         """config sources"""
-        self.node.alg.sources = sources
-        return {
-            'code': 'ok',
-            'msg': {
-                'sources': sources
+        if self.node.mode == 'batch':
+            return {
+                'code': 'err',
+                'msg': 'source config unsupported in batch mode'
             }
-        }
+        elif self.node.mode == 'stream':
+            self.node.alg.sources = sources
+            return {
+                'code': 'ok',
+                'msg': {
+                    'sources': sources
+                }
+            }
+        else:
+            return {
+                'code': 'err',
+                'msg': 'unknown mode'
+            }
 
     def config_out(self, out_cfg):
         """config output"""
@@ -246,6 +219,7 @@ class AlgNodeWeb:
             passwd=out_cfg['passwd'],
             topic=out_cfg['topic']  # if in db mode, can be omitted
         )
+        self.node.alg_submitter.start()
         return {
             'code': 'ok',
             'msg': {
