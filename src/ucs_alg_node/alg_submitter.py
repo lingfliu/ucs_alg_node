@@ -64,15 +64,16 @@ class AlgSubmitter:
                 result = self.queue.get(block=True)
                 if result:
                     ret = self._submit(result)
-                    print('submitting result:', result, 'result', ret)
+                    # print('submitting result:', result, 'result', ret)
                     if ret < 0:
                         # todo log failed submission
-                        print('result submit failed', result)
+                        # print('result submit failed', result)
                         self.stats = 'offline'
                     else:
-                        print('submitted result:' + json.dumps(result))
+                        pass
+                        # print('submitted result:' + json.dumps(result))
                 else:
-                    print('no result in queue')
+                    # print('no result in queue')
                     time.sleep(0.1)
             except:
                 time.sleep(0.1)

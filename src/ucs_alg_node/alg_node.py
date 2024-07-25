@@ -1,3 +1,5 @@
+import os
+import threading
 import time
 
 from .utils import current_time_milli
@@ -35,7 +37,11 @@ class AlgNode:
             self.id = cfg['id'] if 'id' in cfg else 'default'
             self.name = cfg['name'] if 'name' in cfg else 'default'
             self.mode = cfg['mode'] if 'mode' in cfg else 'batch'
-            self.model_dir = cfg['model_dir'] if 'model_dir' in cfg else './model'
+            self.model_dir = cfg['model_dir'] if 'model_dir' in cfg else os.path.join(os.getcwd(), 'models')
+
+            if not os.path.exists(self.model_dir):
+                os.makedirs(self.model_dir)
+
 
             self.alg_timeout = cfg['alg_timeout'] if 'alg_timeout' in cfg else None
             # alg config
@@ -59,18 +65,18 @@ class AlgNode:
 
 
         if self.mode == 'batch':
-            self.task_queue = Queue(max_task)
+            self.task_list = []
+            self.max_task = max_task
+            self.task_list_lck = threading.RLock()
 
     def start(self):
         if not self.alg:
             return -1
 
         def input():
-            try:
-                alg_task = self.task_queue.get(block=True)
-                return alg_task
-            except:
-                return None
+            alg_task = self.pop_task()
+            return alg_task
+
 
         self.submitter.start()
         if self.mode == 'stream':
@@ -78,7 +84,6 @@ class AlgNode:
             self.thrd_stream.start()
             return 0
         elif self.mode == 'batch':
-            self.thrd_queue = True
             self.thrd_batch = ThreadEx(task=self._task_batch, args=(), input=input, mode='return', timeout=self.alg_timeout, post_task=self.publish_result)
             self.thrd_batch.start()
             return 0
@@ -103,20 +108,50 @@ class AlgNode:
     def submit_task(self, alg_task):
         if self.mode == 'stream':
             # reload sources
-            self.task = alg_task
-            self.alg.sources = self.task.sources
-            self.reload()
-            return 0
+            # self.task = alg_task
+            # self.alg.sources = self.task.sources
+            # self.reload()
+            return -1 # task update not supported in stream mode
         elif self.mode == 'batch':
-            try:
-                # throw exception if queue is full
-                self.task_queue.put(alg_task, block=False)
-                return 0
-            except:
+            ret = self.push_task(alg_task)
+            if ret < 0:
                 print("task queue full")
-                return -1
+                return -2
+            else:
+                print('task in queue, queue size:', len(self.task_list))
+                return 0
         else:
+            return -3 # unknown mode
+
+    def push_task(self, alg_task):
+        self.task_list_lck.acquire()
+        if len(self.task_list) >= self.max_task:
+            self.task_list_lck.release()
             return -1
+        else:
+            alg_task.stats = 'pending'
+            self.task_list.append(alg_task)
+            self.task_list_lck.release()
+            return 1
+    def insert_task(self, alg_task):
+        self.task_list_lck.acquire()
+        if len(self.task_list) >= self.max_task:
+            self.task_list_lck.release()
+            return -1
+        else:
+            self.task_list = [alg_task] + self.task_list
+            self.task_list_lck.release()
+            return 1
+
+    def pop_task(self):
+        self.task_list_lck.acquire()
+        if len(self.task_list) > 0:
+            task = self.task_list.pop(0)
+            self.task_list_lck.release()
+            return task
+        else:
+            self.task_list_lck.release()
+            return None
 
     def set_model(self, model):
         # alg will handle model reloading
@@ -137,7 +172,7 @@ class AlgNode:
         alg_task.stats = 'running'
         ret = self.alg.infer_batch(alg_task)
         # wrap result with task infos
-        result = self.wrap_result(alg_task, alg_task.tic, ret)
+        result = self.wrap_result(alg_task, ret)
         return result
 
     def wrap_result(self, task, ret):

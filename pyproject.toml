@@ -1,7 +1,7 @@
 [project]
 name = "ucs_alg_node"
 authors = [{name="Lingfeng LIU",email="lingfeng.liu@163.com"}]
-version = "0.1.3"
+version = "0.1.5"
 description = "UCS algorithm wrapper service"
 readme = "README.md"
 requires-python = ">=3.8"
