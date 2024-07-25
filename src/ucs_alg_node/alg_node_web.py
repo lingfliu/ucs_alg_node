@@ -41,15 +41,13 @@ class AlgNodeWeb:
         self.port = port
 
     def run(self):
-        self.app.run(host='localhost', port=self.port)
+        self.app.run(host='0.0.0.0', port=self.port)
 
     def about(self):
-        return jsonify(
-            {
+        return {
                 'code':'ok',
                 'msg': 'UCS Alg node 0.1.2'
             }
-        )
     def get_alg_info(self):
         """get algorithm info"""
         return {
@@ -94,15 +92,15 @@ class AlgNodeWeb:
         model_path = os.path.join(self.node.model_dir, model_name)
         if os.path.exists(model_path):
             os.remove(model_path)
-            return jsonify({
+            return {
                 'code': 'ok',
                 'msg': 'deleted'
-            })
+            }
         else:
-            return jsonify({
+            return {
                 'code': 'err',
                 'msg': 'model not found'
-            })
+            }
 
     def get_model_list(self):
         model_dir = self.node.model_dir
@@ -118,24 +116,24 @@ class AlgNodeWeb:
 
     def skip_task(self):
         self.node.skip()
-        return jsonify({
+        return {
             'code': 'ok',
             'msg': 'task skipped'
-        })
+        }
 
     def reload(self):
         """reload algorithm"""
         if self.node:
             self.node.reload()
-            return jsonify({
+            return {
                 'code': 'ok',
                 'msg': 'reloading'
-            })
+            }
         else:
-            return jsonify({
+            return {
                 'code': 'err',
                 'msg': 'no alg'
-            })
+            }
 
     def config_model(self, model_name):
         """config model"""
@@ -149,15 +147,15 @@ class AlgNodeWeb:
         if has_model:
             self.node.alg.model = model_name
             self.reload()
-            return jsonify({
+            return {
                 'code': 'ok',
                 'msg': 'model configured'
-            })
+            }
         else:
-            return jsonify({
+            return {
                 'code': 'err',
                 'msg': 'model not found'
-            })
+            }
 
     def config_sources(self, sources):
         """config sources"""
