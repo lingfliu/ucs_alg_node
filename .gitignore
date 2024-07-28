@@ -245,3 +245,4 @@ test/sub.py
 test/mqtt_sub.py
 /test/nsq_text.py
 requirements01.txt
+nsq_test.py
