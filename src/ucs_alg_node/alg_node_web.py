@@ -29,14 +29,15 @@ class AlgNodeWeb:
         self.app.add_url_rule(self.api_root + '/model/upload', 'upload_model', self.upload_model, methods=['POST']) # 上传模型
         self.app.add_url_rule(self.api_root + '/model/delete', 'delete_model', self.delete_model, methods=['POST']) # 删除模型
 
-        self.app.add_url_rule(self.api_root + '/task/info', 'task_info', self.get_task_info, methods=['GET']) # 获取当前任务信息
+        self.app.add_url_rule(self.api_root + '/task/list', 'task_list', self.get_task_list, methods=['GET']) # 获取任务列表信息
+        self.app.add_url_rule(self.api_root + '/task/exc', 'task_info', self.get_task_info, methods=['GET']) # 获取当前执行任务信息
         self.app.add_url_rule(self.api_root + '/task/skip', 'task_skip', self.skip, methods=['POST']) # 跳过当前任务
         self.app.add_url_rule(self.api_root + '/task/submit', 'task_submit', self.submit_task, methods=['POST']) # 提交任务
-        self.app.add_url_rule(self.api_root + '/task/all', 'task_list', self.get_task_list, methods=['GET']) # 提交任务
+        self.app.add_url_rule(self.api_root + '/task/reorder', 'task_list', self.reorder_task, methods=['POST']) # 任务重排序
+        self.app.add_url_rule(self.api_root + '/task/submit_first', 'task_submit_first', self.submit_task_head, methods=['GET']) # 提交任务并插入到队首
 
         self.app.add_url_rule(self.api_root + '/config/sources', 'alg_cfg_sources', self.config_sources, methods=['POST']) #设置数据源
         self.app.add_url_rule(self.api_root + '/config/model', 'alg_cfg_model', self.config_model, methods=['POST']) # 设置模型
-        # self.app.add_url_rule(self.api_root + '/config/dest', 'dest_cfg', self.config_dest, methods=['POST']) # TODO: 配置输出
 
         self.thrd_sys_stat = None
         self.sys_stat = {
@@ -136,6 +137,7 @@ class AlgNodeWeb:
 
     def upload_model(self):
         """upload multipart file"""
+        """TODO: upload file from minio"""
         fobj = request.files.get('file')
         fname = request.form['fname']
         fpath = os.path.join(self.node.model_dir, fobj.filename)
@@ -217,7 +219,9 @@ class AlgNodeWeb:
             }
 
     def config_sources(self, sources):
-        """config sources"""
+        """
+        input source config
+        """
         if self.node.mode == 'batch':
             return {
                 'code': 'err',
@@ -267,7 +271,36 @@ class AlgNodeWeb:
             meta=request.json['meta'] if 'meta' in request.json else None
         )
         print('new task sbumitted at', time.time_ns(), 'task queue size', len(self.node.task_list))
-        ret = self.node.submit_task(task)
+        ret = self.node.submit_task(task, mode='tail')
+
+        if ret >= 0:
+            return {
+                'code': 'ok',
+                'msg': {
+                    'task_id': task.id,
+                    'task_ts': task.ts,
+                    'sources': task.sources,
+                    'meta': task.meta
+                }
+            }
+        else:
+            return {
+                'code': 'err',
+                'msg': 'submit task failed, code:%d' % ret
+            }
+
+    def submit_task_head(self):
+        """submit task to node
+        """
+        # get algtask from request
+        task = AlgTask(
+            id=request.json['id'],
+            ts=request.json['ts'],
+            sources=request.json['sources'],
+            meta=request.json['meta'] if 'meta' in request.json else None
+        )
+        print('new task sbumitted at', time.time_ns(), 'task queue size', len(self.node.task_list))
+        ret = self.node.submit_task(task, mode='head')
 
         if ret >= 0:
             return {
@@ -298,3 +331,31 @@ class AlgNodeWeb:
             'code': 'ok',
             'msg':tasks
         }
+
+    def reorder_task(self):
+        id = request.json['id'],
+        order = int(request.json['order']),
+
+        idx = -1
+        for task in self.node.task_list:
+            if task.id == id:
+                idx = self.node.task_list.index(task)
+                break
+
+        if order < 0:
+            return {
+                'code': 'err',
+                'msg': 'task not found'
+            }
+
+        if order >= len(self.node.task_list):
+            return {
+                'code': 'err',
+                'msg': 'invalid order'
+            }
+        else:
+            self.node.reorder_task(idx, order)
+            return {
+                'code': 'ok',
+                'msg': order
+            }

@@ -108,12 +108,18 @@ class AlgNode:
             # stream mode does not support skipping
             return -1
 
-    def submit_task(self, alg_task):
+    def submit_task(self, alg_task, mode='tail'):
         if self.mode == 'stream':
             # task update not supported in stream mode
             return -1
         elif self.mode == 'batch':
-            ret = self.push_task(alg_task)
+            if mode == 'head':
+                ret = self.headpush_task(alg_task)
+            elif mode == 'tail':
+                ret = self.push_task(alg_task)
+            else:
+                ret = self.push_task(alg_task)
+
             if ret < 0:
                 print("task queue full")
                 return -2
