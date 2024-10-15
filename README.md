@@ -15,7 +15,7 @@ Please refer to [demo.py](test/demo.py)
 python -m build
 ```
 
-# Principles & practice
+# Conceptions 
 
 ## 1. Alg
 An Alg is the wrapper of a specific algorithm. There are 2 working mode:
