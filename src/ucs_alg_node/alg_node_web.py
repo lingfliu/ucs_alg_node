@@ -33,8 +33,8 @@ class AlgNodeWeb:
         self.app.add_url_rule(self.api_root + '/task/exc', 'task_info', self.get_task_info, methods=['GET']) # 获取当前执行任务信息
         self.app.add_url_rule(self.api_root + '/task/skip', 'task_skip', self.skip, methods=['POST']) # 跳过当前任务
         self.app.add_url_rule(self.api_root + '/task/submit', 'task_submit', self.submit_task, methods=['POST']) # 提交任务
-        self.app.add_url_rule(self.api_root + '/task/reorder', 'task_list', self.reorder_task, methods=['POST']) # 任务重排序
-        self.app.add_url_rule(self.api_root + '/task/submit_first', 'task_submit_first', self.submit_task_head, methods=['GET']) # 提交任务并插入到队首
+        self.app.add_url_rule(self.api_root + '/task/reorder', 'task_reorder', self.reorder_task, methods=['POST']) # 任务重排序
+        self.app.add_url_rule(self.api_root + '/task/submit_first', 'task_submit_first', self.submit_task_head, methods=['POST']) # 提交任务并插入到队首
 
         self.app.add_url_rule(self.api_root + '/config/sources', 'alg_cfg_sources', self.config_sources, methods=['POST']) #设置数据源
         self.app.add_url_rule(self.api_root + '/config/model', 'alg_cfg_model', self.config_model, methods=['POST']) # 设置模型
@@ -333,22 +333,25 @@ class AlgNodeWeb:
         }
 
     def reorder_task(self):
-        id = request.json['id'],
-        order = int(request.json['order']),
+        task_id = request.json['id'],
+        order = request.json['order'],
+        order = order[0]
+        task_id = task_id[0]
 
         idx = -1
         for task in self.node.task_list:
-            if task.id == id:
-                idx = self.node.task_list.index(task)
+            if task.id == task_id:
                 break
+            else:
+                idx += 1
 
-        if order < 0:
+        if idx < 0:
             return {
                 'code': 'err',
                 'msg': 'task not found'
             }
 
-        if order >= len(self.node.task_list):
+        if order < 0 or order >= len(self.node.task_list):
             return {
                 'code': 'err',
                 'msg': 'invalid order'
