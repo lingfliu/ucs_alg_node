@@ -7,6 +7,7 @@ import psutil
 
 from . import AlgSubmitter
 from .alg_task import AlgTask
+from .utils import InterruptableThread
 
 class AlgNodeWeb:
     def __init__(self, port=9001, alg_node=None):
@@ -37,13 +38,32 @@ class AlgNodeWeb:
         self.app.add_url_rule(self.api_root + '/config/model', 'alg_cfg_model', self.config_model, methods=['POST']) # 设置模型
         # self.app.add_url_rule(self.api_root + '/config/dest', 'dest_cfg', self.config_dest, methods=['POST']) # TODO: 配置输出
 
+        self.thrd_sys_stat = None
+        self.sys_stat = {
+            'cpu': 0.0,
+            'mem': 0.0,
+            'gpu': 0.0,
+        }
+
     def run(self):
+        self.thrd_sys_stat = InterruptableThread(target=self._task_sys_stat)
+        self.thrd_sys_stat.start()
         self.app.run(host='0.0.0.0', port=self.port)
+
+
+    def _task_sys_stat(self):
+        while True:
+            time.sleep(1)
+            self.sys_stat['cpu'] = psutil.cpu_percent(4)
+            self.sys_stat['mem'] = psutil.virtual_memory().percent
+            self.sys_stat['gpu'] = 0.0
 
     def about(self):
         return {
                 'code':'ok',
-                'msg': 'UCS Alg node 0.1.6' # TODO: read version from pyproject.toml
+                'msg': 'UCS Alg node 0.1.7',
+                'node': self.node.name,
+                'alg': self.node.alg.name,
             }
 
     def get_node_stat(self):
@@ -53,9 +73,17 @@ class AlgNodeWeb:
             'code': 'ok',
             'msg': {
                 # 'sysload': os.getloadavg(), # win32 not supported
-                'cpu': psutil.cpu_percent(),
-                'gpu': 0,
-                'mem': mem_usage.percent,
+                'sys': {
+                    'cpu': self.sys_stat['cpu'],
+                    'gpu': self.sys_stat['gpu'],
+                    'mem': self.sys_stat['mem'],
+                },
+                'node': {
+                    'stat': self.node.stat,
+                    'num_task': len(self.node.task_list),
+                }
+
+
             }
         }
 

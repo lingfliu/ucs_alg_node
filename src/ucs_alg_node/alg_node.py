@@ -51,6 +51,7 @@ class AlgNode:
             self.submitter = cfg['out']
 
             self.task = task
+            self.stat = 'idle'
 
         else:
             self.mode = None
@@ -83,6 +84,7 @@ class AlgNode:
         if self.mode == 'stream':
             self.thrd_stream = ThreadEx(task=self._task_stream, args=(), mode='yield', post_task=self.publish_result)
             self.thrd_stream.start()
+            self.stat = 'running'
             return 0
         elif self.mode == 'batch':
             self.thrd_batch = ThreadEx(task=self._task_batch, args=(), input=input, mode='return', timeout=self.alg_timeout, post_task=self.publish_result)
@@ -248,7 +250,7 @@ class AlgNode:
             self.thrd_stream.start()
             return 0
         elif self.mode == 'batch':
-            self.thrd_queue = True
+            self.task_list = []
             self.thrd_batch = ThreadEx(task=self._task_batch, args=(), input=input, mode='return',
                                        timeout=self.alg_timeout, post_task=self.publish_result)
             self.thrd_batch.start()
@@ -260,6 +262,13 @@ class AlgNode:
     def publish_result(self, ret, task_stat):
         if task_stat == 'timeout':
             ret['stats'] = 'timeout'
+            self.stat = 'timeout' # mark the node as timeout
+        else:
+            if self.mode == 'stream':
+                self.stat = 'running'
+            else:
+                self.stat = 'idle'
+
         if self.submitter:
             ok = self.submitter.submit(ret)
             if ok < 0:
