@@ -42,7 +42,6 @@ class AlgNode:
             if not os.path.exists(self.model_dir):
                 os.makedirs(self.model_dir)
 
-
             self.alg_timeout = cfg['alg_timeout'] if 'alg_timeout' in cfg else None
             # alg config
             self.alg = cfg['alg']
@@ -70,9 +69,11 @@ class AlgNode:
             self.task_list_lck = threading.RLock()
 
     def start(self):
+        # TODO: validate alg
         if not self.alg:
             return -1
 
+        '''define the input function for batch mode only'''
         def input():
             alg_task = self.pop_task()
             return alg_task
@@ -107,11 +108,8 @@ class AlgNode:
 
     def submit_task(self, alg_task):
         if self.mode == 'stream':
-            # reload sources
-            # self.task = alg_task
-            # self.alg.sources = self.task.sources
-            # self.reload()
-            return -1 # task update not supported in stream mode
+            # task update not supported in stream mode
+            return -1
         elif self.mode == 'batch':
             ret = self.push_task(alg_task)
             if ret < 0:
@@ -123,6 +121,7 @@ class AlgNode:
         else:
             return -3 # unknown mode
 
+    """push the task at the tail of the queue (FIFO)"""
     def push_task(self, alg_task):
         self.task_list_lck.acquire()
         if len(self.task_list) >= self.max_task:
@@ -133,12 +132,15 @@ class AlgNode:
             self.task_list.append(alg_task)
             self.task_list_lck.release()
             return 1
-    def insert_task(self, alg_task):
+
+    """push the task at the head of the queue (LIFO)"""
+    def headpush_task(self, alg_task):
         self.task_list_lck.acquire()
         if len(self.task_list) >= self.max_task:
             self.task_list_lck.release()
             return -1
         else:
+            alg_task.stats = 'pending'
             self.task_list = [alg_task] + self.task_list
             self.task_list_lck.release()
             return 1
@@ -147,16 +149,43 @@ class AlgNode:
         self.task_list_lck.acquire()
         if len(self.task_list) > 0:
             task = self.task_list.pop(0)
+            task.stats = 'running'
             self.task_list_lck.release()
             return task
         else:
             self.task_list_lck.release()
             return None
 
-    def set_model(self, model):
+    """reorder the task at pos to idx=reorder"""
+    def reorder_task(self, pos, reorder):
+        self.task_list_lck.acquire()
+        if pos >= len(self.task_list) or reorder >= len(self.task_list):
+            self.task_list_lck.release()
+            return -1
+
+        # move the task at pos to reorder
+        new_task_list = []
+        for idx in range(len(self.task_list)):
+            if idx == reorder:
+                new_task_list.append(self.task_list[pos])
+            else:
+                if idx != pos:
+                    new_task_list.append(self.task_list[idx])
+
+        self.task_list = new_task_list
+        self.task_list_lck.release()
+        return 0
+
+    """only take effect when the model file is in model_dir"""
+    def set_model(self, model_fname):
         # alg will handle model reloading
-        self.alg.model = model
-        self.reload()
+        """check if model exists in model_dir, if not download it"""
+        if os.path.exists(os.path.join(self.model_dir, model_fname)):
+            self.alg.model = model_fname
+            self.reload()
+            return 0
+        else:
+            return -1
 
     def _task_stream(self):
         """simply call infer_stream without args"""
@@ -227,12 +256,14 @@ class AlgNode:
         else:
             return -1
 
-    def publish_result(self, ret):
+    """publish result to a given submitter or stdout"""
+    def publish_result(self, ret, task_stat):
+        if task_stat == 'timeout':
+            ret['stats'] = 'timeout'
         if self.submitter:
             ok = self.submitter.submit(ret)
             if ok < 0:
-                return -1
-            else:
-                return 0
+                print("result:", ret)
         else:
-            return -1
+            # output to console
+            print("result:", ret)

@@ -15,6 +15,7 @@ def get_cwd():
     return os.getcwd()
 
 
+"""not used"""
 class StoppableThread:
     """
     Deprecated
@@ -96,8 +97,8 @@ class InterruptableThread(Thread):
         res = ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, ctypes.py_object(SystemExit))
         if res == 0:
             # raise ValueError('invalid thread id')
-
             # thread already finished
+            self.stat = 'skip'
             pass
         elif res != 1:
             # if it returns a number greater than one, you're in trouble,
@@ -126,16 +127,25 @@ class ThreadEx(Thread):
         self.is_running = True
         self.stat = 'idle'
         self.exc_task = None
+        self.exc_task_stat = 'idle'
 
     def _input_bind_task(self, task, args, input):
         if input is not None:
+            # for batch mode
             return task(*args, input)
         else:
+            # for stream mode
             return task(*args)
 
     def _yield_task(self, task, args):
+        tic = current_time_milli()
         for x in task(*args):
-            self.post_task(x)
+            toc = current_time_milli()
+            if toc - tic > self.timeout:
+                self.post_task(x, 'done') # TODO: determine if the task is timout
+            else:
+                tic = toc
+                self.post_task(x, 'timeout')
 
     def run(self):
         self.stat = 'running'
@@ -147,17 +157,20 @@ class ThreadEx(Thread):
 
                 x = self.input()
                 if not x:
-                    # all tasks done, quit the loop
-                    # self.is_running = False
-                    # break
+                    # all tasks done, wait for the next input
                     time.sleep(0.1)
                 else:
-
                     self.exc_task = InterruptableThread(self._input_bind_task, (self._target, self._args, x))
                     self.exc_task.start()
-                    self.exc_task.join(timeout=self.timeout)
-                    self.stat = self.exc_task.stat
-                    self.post_task(self.exc_task.ret)
+                    self.exc_task.join(timeout=self.timeout) # join the thread until timeout
+                    # TODO: determine if the task is timout
+                    if self.exc_task.stat == 'running':
+                        # task quit without finished
+                        self.exc_task_stat = 'timeout'
+                    else:
+                        self.exc_task_stat = 'done'
+                    self.stat = 'idle'
+                    self.post_task(self.exc_task.ret, self.exc_task_stat)
 
         elif self.mode == "yield":
             while self.is_running:
@@ -176,6 +189,7 @@ class ThreadEx(Thread):
         self.stat = 'stop'
 
 
+"""not used"""
 class CoroutineThread(Thread):
     def __init__(self, target, args=(), timeout=None):
         Thread.__init__(self, target=target, args=args)

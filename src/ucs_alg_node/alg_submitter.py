@@ -4,7 +4,7 @@ import time
 
 from . import cli
 
-from .utils import StoppableThread, current_time_milli, InterruptableThread
+from .utils import InterruptableThread
 from queue import Queue
 
 
