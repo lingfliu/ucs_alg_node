@@ -264,8 +264,8 @@ class AlgNode:
         else:
             return -1
 
-    """publish result to a given submitter or stdout"""
     def publish_result(self, ret, task_stat):
+        """publish result to a given submitter or stdout"""
         if task_stat == 'timeout':
             ret['stats'] = 'timeout'
             self.stat = 'timeout' # mark the node as timeout
